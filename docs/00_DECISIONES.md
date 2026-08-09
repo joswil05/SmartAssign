@@ -962,8 +962,8 @@ La columna real del padrón es `Perfil` (nombre engañoso: en la hoja Personal d
 | SUPERVISOR DE LINEA | 6 | → **Liderazgo** |
 | AUXILIAR DE CONTROL DE MATERIALES | 4 | → **Liderazgo** |
 | OPERARIO DE CONTROL DE AVERIAS | 3 | → **Averiero** |
-| **OPERADOR DE CALDERAS** | **2** | → **Operador A** (extensión propia de la misma inferencia, ver nota) |
-| **OPERARIO DE FILTROS Y TANQUERIA** | **2** | → **Operador A** (extensión propia de la misma inferencia, ver nota) |
+| **OPERADOR DE CALDERAS** | **2** | → **Operador A** (confirmado por el cliente, ver nota) |
+| **OPERARIO DE FILTROS Y TANQUERIA** | **2** | → **Operador A** (confirmado por el cliente, ver nota) |
 | ASISTENTE ADMINISTRATIVO | 1 | → **Liderazgo** |
 | COORDINADOR LINEAS DE ENVASADO | 1 | → **Liderazgo** |
 | COORDINADOR DE MATERIALES DE PRODUCCION | 1 | → **Liderazgo** |
@@ -972,7 +972,7 @@ La columna real del padrón es `Perfil` (nombre engañoso: en la hoja Personal d
 
 > **Mapeo de `OPERADOR DE EQUIPOS` → Operador A: es una inferencia mía, no un dato confirmado por el cliente.** Se apoya en que la especificación describe al Operador A como "anclado automáticamente a su máquina crítica" — que es exactamente el perfil de alguien catalogado como *operador de equipos* y no como *operario* de tarea general. Queda marcada como asunción para revisar cuando lleguen los datos reales de categorización.
 >
-> **`OPERADOR DE CALDERAS` y `OPERARIO DE FILTROS Y TANQUERIA` (4 personas) no aparecían en el primer resumen de este documento** — solo se ven al leer la hoja completa, no un resumen. Misma lógica que `OPERADOR DE EQUIPOS`: operan un equipo específico, no una tarea general de rotación ni una reparación de avería, así que se extienden a **Operador A** con la misma reserva — inferencia propia, no confirmada, y afecta a muy poca gente (4 de 164) mientras llega la categorización real.
+> **`OPERADOR DE CALDERAS` y `OPERARIO DE FILTROS Y TANQUERIA` (4 personas) no aparecían en el primer resumen de este documento** — solo se ven al leer la hoja completa, no un resumen. Se propuso extenderlas a **Operador A** por la misma lógica que `OPERADOR DE EQUIPOS` (operan un equipo específico, no tarea general ni avería), y el cliente lo confirmó explícitamente: *"los de calderas y filtros cuéntalos como operadores"* (2026-08-09). Queda cerrado para estas 4 personas — a diferencia de `OPERADOR DE EQUIPOS`, que sigue siendo inferencia propia sin confirmar.
 >
 > **La cuenta de "liderazgo" en el resumen original decía 18; la suma exacta de los 7 puestos no-operativos de arriba da 15.** La diferencia no cambia ninguna decisión — ambos números describen el mismo bloque "no son operarios de rotación ni de equipo ni de avería" — pero se deja registrado que el 18 era una cifra de resumen, no un recuento fila por fila.
 
@@ -1034,6 +1034,19 @@ Ninguno de estos mapea limpio a `operador_a` / `operador_c` — "Operador" (19 f
 
 *Impacta:* 04 (`Puesto.categoria_titular`, `CK_Puesto_categoria`), 07 (importador).
 
+## G6 · `SexoPreferente` sucio en "Puestos Fijos" (Línea 6 + tipeo) — 🟢 Cerrada — cliente
+
+Al importar contra el archivo real (H8), 9 de las 98 filas de "Puestos Fijos" fallaban la validación de A13 (`SexoPreferente` solo admite Indistinto/Masculino/Femenino):
+
+- **1 fila** (`L05008`, "Revisión y empaque"): traía `"Femenina"` en vez de `"Femenino"`.
+- **8 filas** (toda la Línea 6, `L06001`–`L06009` salvo `L06005`): traían el mismo valor de `PerfilRequerido` arrastrado por error a la columna `SexoPreferente` (p. ej. `Supervisor`, `Operador`, `Averiero`, `Estibador`).
+
+> *"La diferencia entre femenino y femenina no existe, es un error de escritura. El resto de la tabla describe los puestos disponibles en la planta y el perfil técnico requerido."*
+
+**Resolución del cliente:** `"Femenina"` es sinónimo de `"Femenino"` — normalizado. Para las 8 filas de la Línea 6, el resto del archivo (91 filas limpias) da un patrón sin una sola excepción entre `PerfilRequerido` arrastrado y el `SexoPreferente` real que le correspondería: `Operador`→Masculino (15/15), `Averiero`→Masculino (5/5), `Supervisor`→Indistinto (6/6), puestos "Estibador *"→Masculino (9/9 por nombre de puesto). El importador ahora repara estos valores conocidos en vez de rechazar la fila; cualquier otro valor no reconocido (p. ej. `Genérico`, que no tiene un patrón consistente en los datos limpios) se sigue rechazando como antes.
+
+*Impacta:* 07 (importador — `ImportadorDatosReales.ReparacionSexoPreferentePorArrastre`). H8 queda resuelto: los 98 puestos fijos reales ya importan sin errores.
+
 ---
 
 ## Resumen de estado
@@ -1046,9 +1059,9 @@ Ninguno de estos mapea limpio a `operador_a` / `operador_c` — "Operador" (19 f
 | D · Seguridad | 7 | 1 | — |
 | E · Entorno | 4 | — | 3 |
 | F · Arquitectura y despliegue | 4 | — | — |
-| G · Huecos de los datos reales | 3 | — | 2 (G4, G5 — ninguna bloqueante) |
-| **Total** | **59** | **2** | **5** |
+| G · Huecos de los datos reales | 4 | — | 2 (G4, G5 — ninguna bloqueante) |
+| **Total** | **60** | **2** | **5** |
 
-**La construcción arranca sin ningún bloqueo.** G1, G2 y G3 quedaron resueltas para poder construir y probar; G4 (puestos por SKU incompletos) se rellena con datos simulados sin necesitar respuesta; G5 (categoría del titular de puestos fijos) se descubrió al importar y no bloquea nada, salvo el barrido automático más adelante (E5.5). Quedan abiertas E3, E4, E7 (entorno, no bloquean), G4 y G5, y A5b/A7-orig ya no aplican — fueron cerradas.
+**La construcción arranca sin ningún bloqueo.** G1, G2, G3 y G6 quedaron resueltas para poder construir y probar; G4 (puestos por SKU incompletos) se rellena con datos simulados sin necesitar respuesta; G5 (categoría del titular de puestos fijos) se descubrió al importar y no bloquea nada, salvo el barrido automático más adelante (E5.5). Quedan abiertas E3, E4, E7 (entorno, no bloquean), G4 y G5, y A5b/A7-orig ya no aplican — fueron cerradas.
 
 > **En el camino crítico y fuera del software: imprimir los gafetes con QR, y conseguir la categorización real de A/B/C y los datos médicos antes del piloto.**

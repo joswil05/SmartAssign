@@ -133,6 +133,24 @@ public class ImportadorDatosRealesTests : IAsyncLifetime
         ana.LineaHabitual.Should().BeNull("00 §G3: MAQUILA no es una de las 10 líneas");
     }
 
+    [Theory]
+    [InlineData("OPERADOR DE CALDERAS")]
+    [InlineData("OPERARIO DE FILTROS Y TANQUERIA")]
+    public async Task Mapea_calderas_y_filtros_a_operador_a_confirmado_por_el_cliente(string perfilCrudo)
+    {
+        // 00 §G1: "cuéntalos como operadores" (cliente, 2026-08-09).
+        await using var ctx = CrearContexto();
+        var importador = new ImportadorDatosReales(ctx);
+
+        using var libro = LibroPersonal(
+            new object[] { "1001", "Persona De Prueba", "MASCULINO", perfilCrudo, "", "", "", "LINEA 1", "", true });
+
+        var resultado = await importador.ImportarPersonalAsync(libro);
+
+        resultado.Exitoso.Should().BeTrue();
+        (await ctx.Personas.SingleAsync()).Categoria.Should().Be("operador_a");
+    }
+
     [Fact]
     public async Task Rechaza_el_lote_completo_si_una_sola_fila_tiene_categoria_desconocida()
     {
@@ -235,20 +253,62 @@ public class ImportadorDatosRealesTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Rechaza_sexo_preferente_contaminado_con_valores_de_perfil_requerido()
+    public async Task Rechaza_sexo_preferente_contaminado_sin_patron_de_reparacion_conocido()
     {
         await using var ctx = CrearContexto();
         await ComoCoordinadorAsync(ctx);
         var importador = new ImportadorDatosReales(ctx);
 
         using var libro = LibroPuestosFijos(
-            new object[] { "L01002", "Armadora de Cajas", "Operador", "", "", "Operador" }); // dato real observado (00 §A13)
+            new object[] { "L01002", "Armadora de Cajas", "Genérico", "", "", "Genérico" }); // sin patrón 100% consistente en los datos reales
 
         var resultado = await importador.ImportarPuestosFijosAsync(libro);
 
         resultado.Exitoso.Should().BeFalse();
         resultado.Errores.Should().ContainSingle(e => e.Columna == "SexoPreferente");
         (await ctx.Puestos.CountAsync()).Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("Supervisor", "Indistinto")]
+    [InlineData("Operador", "Masculino")]
+    [InlineData("Averiero", "Masculino")]
+    [InlineData("Estibador", "Masculino")]
+    public async Task Repara_sexo_preferente_arrastrado_de_perfil_requerido_por_patron_conocido(string valorArrastrado, string sexoEsperado)
+    {
+        // 00 §G6: dato real observado en la Línea 6 (mismas 8 filas que
+        // antes se rechazaban por A13) — se repara en vez de rechazarse
+        // porque el resto del archivo confirma el valor sin excepción,
+        // y el cliente validó que no hay más error de captura ahí.
+        await using var ctx = CrearContexto();
+        await ComoCoordinadorAsync(ctx);
+        var importador = new ImportadorDatosReales(ctx);
+
+        using var libro = LibroPuestosFijos(
+            new object[] { "L06001", "Puesto de prueba", valorArrastrado, "", "", valorArrastrado });
+
+        var resultado = await importador.ImportarPuestosFijosAsync(libro);
+
+        resultado.Exitoso.Should().BeTrue();
+        (await ctx.Puestos.SingleAsync()).SexoPreferente.Should().Be(sexoEsperado);
+    }
+
+    [Fact]
+    public async Task Normaliza_femenina_a_femenino_por_error_de_tipeo_confirmado_por_el_cliente()
+    {
+        // 00 §G6: "la diferencia entre femenino y femenina no existe, es
+        // un error de escritura" (cliente, 2026-08-09).
+        await using var ctx = CrearContexto();
+        await ComoCoordinadorAsync(ctx);
+        var importador = new ImportadorDatosReales(ctx);
+
+        using var libro = LibroPuestosFijos(
+            new object[] { "L05008", "Revisión y empaque", "Femenina", 2, 2, "Indistinto" });
+
+        var resultado = await importador.ImportarPuestosFijosAsync(libro);
+
+        resultado.Exitoso.Should().BeTrue();
+        (await ctx.Puestos.SingleAsync()).SexoPreferente.Should().Be("Femenino");
     }
 
     // ═══ Ausencias ═══

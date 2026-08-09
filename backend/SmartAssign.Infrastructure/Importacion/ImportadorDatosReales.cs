@@ -15,9 +15,9 @@ namespace SmartAssign.Infrastructure.Importacion;
 public class ImportadorDatosReales(SmartAssignDbContext db) : IImportadorDatosReales
 {
     // 00 §G1 — columna real "Perfil" de la hoja Personal (que pese al
-    // nombre es la categoría, no una preferencia). Incluye la extensión
-    // de G1 de esta misma etapa (OPERADOR DE CALDERAS / OPERARIO DE
-    // FILTROS Y TANQUERIA → Operador A, inferencia propia sin confirmar).
+    // nombre es la categoría, no una preferencia). OPERADOR DE CALDERAS
+    // y OPERARIO DE FILTROS Y TANQUERIA → Operador A, confirmado por el
+    // cliente ("cuéntalos como operadores", 2026-08-09).
     private static readonly Dictionary<string, string> MapaCategoria = new(StringComparer.OrdinalIgnoreCase)
     {
         ["OPERARIO"] = "operario",
@@ -51,6 +51,31 @@ public class ImportadorDatosReales(SmartAssignDbContext db) : IImportadorDatosRe
 
     private static readonly HashSet<string> SexoPreferenteValido =
         new(StringComparer.OrdinalIgnoreCase) { "Indistinto", "Masculino", "Femenino" };
+
+    // 00 §G6 — "Femenina" es error de tipeo por "Femenino" (confirmado
+    // por el cliente, 2026-08-09: "la diferencia... no existe").
+    private static readonly Dictionary<string, string> SinonimoSexoPreferente =
+        new(StringComparer.OrdinalIgnoreCase) { ["Femenina"] = "Femenino" };
+
+    // 00 §G6 — 8 filas de la Línea 6 tienen el valor de PerfilRequerido
+    // arrastrado por error a la columna SexoPreferente (mismo patrón que
+    // A13 ya detectaba como error, pero antes se rechazaba en vez de
+    // repararse). Se repara por coincidencia exacta: en el resto del
+    // archivo (91 filas limpias), cada uno de estos PerfilRequerido
+    // tiene siempre el mismo SexoPreferente, sin una sola excepción
+    // (Operador→Masculino en 15/15, Averiero→Masculino en 5/5,
+    // Supervisor→Indistinto en 6/6, puestos "Estibador *"→Masculino en
+    // 9/9). Confirmado por el cliente que el resto de la tabla ya
+    // describe puestos y perfil técnico reales, no un error de captura
+    // adicional — solo faltaba esta corrección puntual.
+    private static readonly Dictionary<string, string> ReparacionSexoPreferentePorArrastre =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Supervisor"] = "Indistinto",
+            ["Operador"] = "Masculino",
+            ["Averiero"] = "Masculino",
+            ["Estibador"] = "Masculino",
+        };
 
     // Hoja "Personal ausente", columna CodSalida → AusenciaJustificada.Tipo
     // (04 §3.3, valores fijos del CHECK). "Emergencia" y "Consulta" no
@@ -180,9 +205,13 @@ public class ImportadorDatosReales(SmartAssignDbContext db) : IImportadorDatosRe
             if (nombrePuesto.Length == 0)
                 errores.Add(new ErrorImportacion(numeroFila, "NombrePuesto", "Nombre de puesto vacío"));
 
+            var sexoPreferenteNormalizado = SinonimoSexoPreferente.GetValueOrDefault(sexoPreferenteCrudo, sexoPreferenteCrudo);
+
             string? sexoPreferente = null;
-            if (SexoPreferenteValido.Contains(sexoPreferenteCrudo))
-                sexoPreferente = char.ToUpperInvariant(sexoPreferenteCrudo[0]) + sexoPreferenteCrudo[1..].ToLowerInvariant();
+            if (SexoPreferenteValido.Contains(sexoPreferenteNormalizado))
+                sexoPreferente = char.ToUpperInvariant(sexoPreferenteNormalizado[0]) + sexoPreferenteNormalizado[1..].ToLowerInvariant();
+            else if (ReparacionSexoPreferentePorArrastre.TryGetValue(sexoPreferenteCrudo, out var reparado))
+                sexoPreferente = reparado; // 00 §G6
             else if (sexoPreferenteCrudo.Length > 0)
                 errores.Add(new ErrorImportacion(numeroFila, "SexoPreferente",
                     $"'{sexoPreferenteCrudo}' no es Indistinto/Masculino/Femenino — parece dato de PerfilRequerido mezclado en la columna equivocada (00 §A13)"));
