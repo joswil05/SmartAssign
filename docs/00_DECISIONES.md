@@ -953,14 +953,28 @@ El archivo del cliente resuelve mucho *(A12, A13)* pero deja cuatro cosas sin la
 
 Las categorías reales del padrón no distinguen A/B/C:
 
+La columna real del padrón es `Perfil` (nombre engañoso: en la hoja Personal del Excel es la **categoría** laboral, no una preferencia — no confundir con `PerfilRequerido` de la hoja Puestos Fijos, que sí es preferencia/exigencia de puesto, ver A13). Los 164 activos se reparten en 12 valores distintos:
+
 | Categoría real | Personas activas | Mapeo |
 |---|---|---|
-| **OPERADOR DE EQUIPOS** | **22** | → **Operador A** (asunción propia, ver nota) |
 | OPERARIO | 120 | → **Operario**, salvo el subconjunto simulado de abajo |
+| **OPERADOR DE EQUIPOS** | **22** | → **Operador A** (asunción propia, ver nota) |
+| SUPERVISOR DE LINEA | 6 | → **Liderazgo** |
+| AUXILIAR DE CONTROL DE MATERIALES | 4 | → **Liderazgo** |
 | OPERARIO DE CONTROL DE AVERIAS | 3 | → **Averiero** |
-| SUPERVISOR DE LINEA, jefatura, análisis, auxiliar de materiales | 18 | → **Liderazgo** |
+| **OPERADOR DE CALDERAS** | **2** | → **Operador A** (extensión propia de la misma inferencia, ver nota) |
+| **OPERARIO DE FILTROS Y TANQUERIA** | **2** | → **Operador A** (extensión propia de la misma inferencia, ver nota) |
+| ASISTENTE ADMINISTRATIVO | 1 | → **Liderazgo** |
+| COORDINADOR LINEAS DE ENVASADO | 1 | → **Liderazgo** |
+| COORDINADOR DE MATERIALES DE PRODUCCION | 1 | → **Liderazgo** |
+| ANALISTA DE PROCESOS | 1 | → **Liderazgo** |
+| JEFE DE EMBOTELLADO | 1 | → **Liderazgo** |
 
 > **Mapeo de `OPERADOR DE EQUIPOS` → Operador A: es una inferencia mía, no un dato confirmado por el cliente.** Se apoya en que la especificación describe al Operador A como "anclado automáticamente a su máquina crítica" — que es exactamente el perfil de alguien catalogado como *operador de equipos* y no como *operario* de tarea general. Queda marcada como asunción para revisar cuando lleguen los datos reales de categorización.
+>
+> **`OPERADOR DE CALDERAS` y `OPERARIO DE FILTROS Y TANQUERIA` (4 personas) no aparecían en el primer resumen de este documento** — solo se ven al leer la hoja completa, no un resumen. Misma lógica que `OPERADOR DE EQUIPOS`: operan un equipo específico, no una tarea general de rotación ni una reparación de avería, así que se extienden a **Operador A** con la misma reserva — inferencia propia, no confirmada, y afecta a muy poca gente (4 de 164) mientras llega la categorización real.
+>
+> **La cuenta de "liderazgo" en el resumen original decía 18; la suma exacta de los 7 puestos no-operativos de arriba da 15.** La diferencia no cambia ninguna decisión — ambos números describen el mismo bloque "no son operarios de rotación ni de equipo ni de avería" — pero se deja registrado que el 18 era una cifra de resumen, no un recuento fila por fila.
 
 **Resolución del cliente para poder construir y probar ya:**
 

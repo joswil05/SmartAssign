@@ -183,23 +183,48 @@ CREATE TABLE PuestoSKU (
 
 ## 2.6 Puesto
 
+> **Actualizado en la etapa E3 con lo que reveló el archivo real del cliente (A12, A13, A14)** — la versión de abajo sustituye la que describían las primeras versiones de este documento, redactadas antes de tener datos reales. Ver docs/PROGRESO.md, notas de la etapa E3.
+
 ```sql
 CREATE TABLE Puesto (
-    Id                  INT IDENTITY PRIMARY KEY,
-    linea_id            TINYINT      NOT NULL REFERENCES Linea(Id),
-    codigo              VARCHAR(20)  NOT NULL,
-    tipo                VARCHAR(10)  NOT NULL,     -- 'fijo' | 'rotativo' (Parte V)
-    tipo_actividad_id   SMALLINT     NULL REFERENCES TipoActividad(Id),
-    categoria_titular   VARCHAR(15)  NULL,         -- solo fijos: 'operador_a'|'operador_c'|'averiero'
-    titular_id          INT          NULL REFERENCES Personal(Id),   -- (C12)
-    perfil_preferente   NVARCHAR(60) NULL,         -- regla blanda (§7.3)
+    Id                    INT IDENTITY PRIMARY KEY,
+    linea_id              TINYINT      NOT NULL REFERENCES Linea(Id),
+    codigo                VARCHAR(20)  NOT NULL,
+    nombre_puesto         NVARCHAR(120) NOT NULL,
+    tipo                  VARCHAR(10)  NOT NULL,     -- 'fijo' | 'rotativo' (Parte V) — se deriva de horas_en_puesto en el importador (A12)
+    tipo_actividad_id     SMALLINT     NULL REFERENCES TipoActividad(Id),
+    categoria_titular     VARCHAR(15)  NULL,         -- solo fijos: 'operador_a'|'operador_c'|'averiero' — QUIÉN es el titular técnico
+    titular_id            INT          NULL REFERENCES Personal(Id),   -- (C12)
 
-    -- Umbrales de fatiga PROPIOS del puesto (A4). NULL => default de planta
-    umbral_sugerido_min SMALLINT     NULL,
-    umbral_critico_min  SMALLINT     NULL,
+    -- Regla DURA de compatibilidad (§4.2, B12: nunca cede). Distinta de
+    -- categoria_titular: esta es lo que el puesto EXIGE de cualquiera que
+    -- lo ocupe. Viene de la columna real PerfilRequerido (A13). El motor
+    -- que la evalúa (fn_CategoriaCompatible) se construye en la etapa E4;
+    -- aquí solo se declara el almacenamiento.
+    perfil_requerido      VARCHAR(30)  NULL,
 
-    activo              BIT          NOT NULL DEFAULT 1,
-    row_version         ROWVERSION   NOT NULL,
+    -- Regla BLANDA (§7.3, cede en niveles 2 y 4 de §8.5). A13: es el sexo
+    -- preferente del puesto — reemplaza el "perfil_preferente" genérico
+    -- de la versión original de este documento, que nunca tuvo un
+    -- segundo dato real con el que compararse hasta ahora.
+    sexo_preferente       VARCHAR(12)  NULL,
+
+    -- Fatiga PROPIA del puesto (A4), en HORAS — no minutos. A14: el Excel
+    -- real trae un solo valor de fatiga por puesto (TiempoEnPuesto), que
+    -- puebla horas_en_puesto; umbral_critico_horas sigue nulable con
+    -- default de planta, tal como A4 ya preveía, porque no hay un
+    -- segundo dato real y A14 decide no inventarlo. Ambos en la misma
+    -- unidad a propósito, para que la CHECK no mezcle horas y minutos.
+    horas_en_puesto       SMALLINT     NULL,
+    umbral_critico_horas  SMALLINT     NULL,
+
+    -- Generaliza la regla de 24 h (A12): tiempo antes de poder repetir la
+    -- misma actividad. Viene de TiempoDeRecup. Sustituye a
+    -- TipoActividad.aplica_no_repeticion_24h, que ya no existe.
+    horas_recuperacion    SMALLINT     NULL,
+
+    activo                BIT          NOT NULL DEFAULT 1,
+    row_version           ROWVERSION   NOT NULL,
 
     CONSTRAINT UQ_Puesto UNIQUE (linea_id, codigo),
     CONSTRAINT CK_Puesto_tipo CHECK (tipo IN ('fijo','rotativo')),
@@ -207,8 +232,8 @@ CREATE TABLE Puesto (
         (tipo = 'fijo' AND categoria_titular IS NOT NULL) OR
         (tipo = 'rotativo' AND categoria_titular IS NULL)),
     CONSTRAINT CK_Puesto_umbrales CHECK (
-        umbral_sugerido_min IS NULL OR umbral_critico_min IS NULL
-        OR umbral_critico_min > umbral_sugerido_min)
+        umbral_critico_horas IS NULL OR horas_en_puesto IS NULL
+        OR umbral_critico_horas > horas_en_puesto)
 );
 ```
 
@@ -218,7 +243,7 @@ CREATE TABLE Puesto (
 >
 > La distinción no vive en la columna sino en el procedimiento: `sp_BarridoPuestosFijos` filtra `tipo = 'fijo'` explícitamente. Sin ese filtro, el barrido llenaría los rotativos y §5.2 exige que empiecen vacíos.
 >
-> **Umbrales por puesto** *(A4)*: se siembran en `NULL` y el motor cae al parámetro de planta. Los valores reales se calibran con datos de operación.
+> **Umbrales por puesto** *(A4, A14)*: se siembran en `NULL` y el motor cae al parámetro de planta. `horas_en_puesto` llega con dato real del cliente para 67 de 98 puestos; `umbral_critico_horas` sigue sin calibrar.
 
 ## 2.7 Capacidades físicas — el vocabulario de la regla médica
 
@@ -248,17 +273,19 @@ CREATE TABLE PuestoCapacidad (
 
 ## 3.1 Personal
 
+> **Actualizado en la etapa E3 (A13)** — `perfil` de la versión original se sustituye por `sexo`: el Excel real trae `Personal.Sexo` siempre relleno, y A13 cerró que la regla blanda del §7.3 es exactamente la comparación de sexo contra `Puesto.sexo_preferente`. La columna `Perfil` del propio archivo del cliente es en realidad la **categoría** (mapeada por G1), no una preferencia — de ahí el nombre engañoso que motivó la confusión inicial.
+
 ```sql
 CREATE TABLE Personal (
     Id                  INT IDENTITY PRIMARY KEY,
-    ficha               VARCHAR(20)  NOT NULL UNIQUE,   -- número del gafete (§12.2)
+    ficha               VARCHAR(20)  NOT NULL UNIQUE,   -- número del gafete (§12.2) — CodEmpleado
     nombre_completo     NVARCHAR(150) NOT NULL,
-    categoria           VARCHAR(20)  NOT NULL,          -- Parte IV
-    linea_habitual      TINYINT      NULL REFERENCES Linea(Id),   -- (§8.2, C3)
+    categoria           VARCHAR(20)  NOT NULL,          -- Parte IV — mapeada de la columna "Perfil" del Excel (G1)
+    sexo                VARCHAR(12)  NULL,               -- (A13) el otro lado de Puesto.sexo_preferente; NULL = no evaluar
+    linea_habitual      TINYINT      NULL REFERENCES Linea(Id),   -- (§8.2, C3, G3)
     linea_fisica_actual TINYINT      NULL REFERENCES Linea(Id),   -- (§8.2)
     situacion           VARCHAR(25)  NOT NULL DEFAULT 'fuera_de_turno',  -- Parte VI
     doble_turno         BIT          NOT NULL DEFAULT 0,          -- (§11.5, B7)
-    perfil              NVARCHAR(60) NULL,              -- puede ser NULL: §7.3 no infiere
     activo              BIT          NOT NULL DEFAULT 1,          -- baja/reactivación
     row_version         ROWVERSION   NOT NULL,
 
@@ -273,9 +300,9 @@ CREATE INDEX IX_Personal_disponible ON Personal(situacion, linea_fisica_actual)
     INCLUDE (ficha, nombre_completo, categoria) WHERE activo = 1;
 ```
 
-> **`perfil` es nulable a propósito** *(§7.3)*: *"Si el dato de la persona no está registrado, la regla no se aplica. Nunca se infiere ni se deduce."* Un `NULL` aquí significa "no evaluar", nunca "no cumple".
+> **`sexo` es nulable a propósito** *(§7.3, A13)*: *"Si el dato de la persona no está registrado, la regla no se aplica. Nunca se infiere ni se deduce."* Un `NULL` aquí significa "no evaluar", nunca "no cumple" ni "indistinto".
 >
-> **`linea_habitual`** es lo que resuelve el origen de la línea física al arrancar *(§8.2, C3)*, sin necesidad de integración con reloj checador.
+> **`linea_habitual`** es lo que resuelve el origen de la línea física al arrancar *(§8.2, C3)*, sin necesidad de integración con reloj checador. Nulo para el personal de centros de coste que no son de las 10 líneas — MAQUILA/PET/1605/1606 *(G3)*.
 
 ## 3.2 RestriccionMedica `[SEGURIDAD DE DATOS]` *(§7.2, C14)*
 

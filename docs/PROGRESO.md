@@ -1,7 +1,7 @@
 # SmartAssign — Estado de ejecución
 
 **Se lee al empezar cada sesión. Se actualiza al terminar cada UT.**
-Última actualización: 2026-08-09 · UTs completadas: **15 / 95**
+Última actualización: 2026-08-09 · UTs completadas: **19 / 95**
 
 ## Decisiones de esta sesión que no estaban en los documentos
 
@@ -77,26 +77,31 @@
 
 > **→ PC-1** · Validación humana: dos supervisores en dos teléfonos, ninguno ve la línea del otro. **Listo para validar** — requiere H2 (teléfonos físicos) y la app real (E6); por ahora demostrado por API + pruebas automatizadas.
 
-## E3 · Personal y puestos *(0/6)* → F2
+## E3 · Personal y puestos *(4/6)* → F2
 
-- [ ] **E3.1** `Puesto` con umbrales propios nulables y `titular_id` de doble semántica
-  - LEE: `04 §2.6`, `00 §A4`, `00 §C12`
-  - VERIFICA: `CK_Puesto_umbrales` rechaza crítico ≤ sugerido
-- [ ] **E3.2** `PuestoCapacidad` y `TipoActividad` con bandera de 24 h
-  - LEE: `04 §2.4`, `04 §2.7`, `00 §A4`
-  - VERIFICA: solo "Girar botellas" con la bandera activa
-- [ ] **E3.3** `Personal` — `perfil` nulable, `linea_habitual`
-  - LEE: `04 §3.1`, `§7.3`, `00 §C3`
-  - VERIFICA: prueba de que `perfil` NULL significa *no evaluar*
-- [ ] **E3.4** `RestriccionMedica` con vigencia y sin borrado
-  - LEE: `04 §3.2`, `00 §C14`, `§7.2`
-  - VERIFICA: `DELETE` denegado a la cuenta de aplicación
+- [x] **E3.1** `Puesto` con umbrales propios nulables y `titular_id` de doble semántica
+  - VERIFICADO: `CK_Puesto_umbrales` rechaza crítico=sugerido y crítico<sugerido (`PersonalYPuestosTests`), acepta crítico>sugerido y nulos. **Cambio de diseño respecto al 04 original:** el umbral crítico se guarda en horas (`umbral_critico_horas`), no minutos, para poder compararse contra `horas_en_puesto` sin conversión — ver nota de ingeniería abajo
+- [x] **E3.2** `PuestoCapacidad` y `TipoActividad`
+  - VERIFICADO: tabla `PuestoCapacidad` (FK a Puesto+CapacidadFisica) migrada y probada; la bandera `aplica_no_repeticion_24h` de la UT original **ya no existe** — A12 (cerrada antes de esta sesión) la sustituyó por `Puesto.horas_recuperacion` con dato real por puesto. Verificación real con las horas de Girar botellas(24)/Limpieza(48) queda para E3.6, cuando haya datos importados
+- [x] **E3.3** `Personal` — `categoria` (mapeada de G1), `sexo` nulable, `linea_habitual`
+  - VERIFICADO: `Personal_se_guarda_con_sexo_nulo_sin_error`. **Cambio de diseño respecto al 04 original:** el campo `perfil` (genérico) se sustituye por `sexo` — A13 (cerrada antes de esta sesión, no reflejada aún en 04) confirma que la regla blanda del §7.3 es la comparación de sexo contra `Puesto.sexo_preferente`. 04_ESQUEMA_BACKEND.md actualizado
+- [x] **E3.4** `RestriccionMedica` con vigencia y sin borrado
+  - VERIFICADO: `DENY_impide_borrar_una_restriccion_medica_con_la_cuenta_de_aplicacion` — impersonando un usuario real `rol_app` (`WITHOUT LOGIN`, creado en esta etapa) vía `EXECUTE AS`, con `GRANT SELECT/INSERT/UPDATE` explícito para aislar que lo único denegado es `DELETE`. Mensaje de SQL Server confirmado literalmente
 - [ ] **E3.5** **Semilla simulada adversaria** — los 16 escenarios
   - LEE: `07 §4.1`, `07 §4.2`
   - VERIFICA: una prueba por escenario confirma que existe en la semilla
 - [ ] **E3.6** Importador de datos reales con rechazo por lote
   - LEE: `07 §4.3`, `04 §3`
   - VERIFICA: fila inválida → se rechaza el lote entero, con informe
+
+### Decisiones de ingeniería de la etapa E3 (delegadas, no de negocio — R2 no aplica)
+
+- **`Puesto.PerfilRequerido` — columna nueva, no estaba en 04 original.** Al leer el Excel real (hoja "Puestos Fijos") para E3.1 apareció una columna real `PerfilRequerido` (Supervisor/Operador/Averiero/Estibador/Indistinto/Genérico/Operador de filtro) que 00 §A13 ya mencionaba pero que 04 nunca declaró como columna. Es la matriz de compatibilidad dura del §4.2, distinta de `categoria_titular`. Se añade la columna ahora (E3.1) porque el importador (E3.6) necesita dónde escribirla; el motor que la EVALÚA (`fn_CategoriaCompatible`) se construye en **E4**, no aquí — esta etapa solo declara el almacenamiento.
+- **`Personal.Sexo` reemplaza `Personal.perfil`.** Mismo hallazgo: el Excel trae `Personal.Sexo` (MASCULINO/FEMENINO) siempre relleno, y A13 ya había cerrado que ese es el otro lado de la comparación con `Puesto.sexo_preferente`. La columna `Perfil` del Excel de Personal es en realidad la **categoría** (mapeada por G1), no una preferencia — nombre engañoso que se documenta explícitamente para que nadie más lo confunda.
+- **`Puesto.UmbralCriticoHoras`, no `umbral_critico_min`.** El 04 original tenía los dos umbrales en minutos. A14 (cerrada antes de esta sesión) puebla el "sugerido" desde el dato real en HORAS (`horas_en_puesto`). Comparar horas contra minutos en la misma CHECK sin conversión habría sido un error silencioso; se define el crítico también en horas. Es una decisión técnica de continuidad de A14, no una cifra de negocio — sigue nulable, sin valor inventado.
+- **Extensión de G1:** `OPERADOR DE CALDERAS` y `OPERARIO DE FILTROS Y TANQUERIA` (4 personas) no estaban en el resumen original de G1 — solo aparecen leyendo la hoja completa. Mapeadas a Operador A por la misma lógica que `OPERADOR DE EQUIPOS` (equipo específico, no tarea general), marcado igual de explícito como inferencia propia pendiente de confirmación. Ver `00_DECISIONES.md §G1` actualizado.
+- **`rol_app` creado como `USER ... WITHOUT LOGIN`.** Necesario para que el DENY de RestriccionMedica (04 §7.5) sea probable de verdad — sin un principal separado de `dbo`, cualquier prueba de DENY sería un placebo, porque `db_owner` no queda sujeto a un DENY de esta forma. Qué login de servidor se mapea a este rol en cada entorno es una decisión de despliegue (F-block), no de esta migración.
+- **El resto del DENY de 04 §7.5** (Asignacion, Movimiento, Auditoria) queda para **E4.7**, tal como decía el plan original — no se adelantó porque esas tablas todavía no tienen flujo de escritura real que proteger.
 
 ## E4 · Motor de validación *(0/8)* → F3 · `[BLOQUEANTE]`
 
@@ -250,3 +255,4 @@
 |---|---|---|
 | 2026-08-09 | E0 (3) + E1 (6) | Esqueletos backend/Android, migración base, semilla estructural con corrección A1 verificada |
 | 2026-08-09 | E2 (6) | Identidad y aislamiento en tres capas (JWT sin `linea_id`, filtro de alcance, RLS). 32/32 pruebas en verde. Deuda documentada: bloqueo automático por reintentos sin umbral (falta `Parametro`), RLS de `JornadaLinea` diferido a E5 |
+| 2026-08-09 | E3.1–E3.4 (4) | `Personal`, extensión de `Puesto` (titular, umbrales en horas, `PerfilRequerido`), `PuestoCapacidad`, `RestriccionMedica` con `DENY DELETE` real vía `rol_app`. 38/38 pruebas en verde. Corrige 04 en dos puntos que A13/A14 ya habían cerrado pero el documento no reflejaba (`Personal.Sexo`, `Puesto.PerfilRequerido`). Extiende G1 con 4 personas no cubiertas por el resumen original. **E3.5/E3.6 pendientes** — semilla adversaria e importador real, quedan para la siguiente sesión de construcción |
