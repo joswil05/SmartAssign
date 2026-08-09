@@ -70,7 +70,7 @@ Versión 1.0 · 2026-08-09
                             ▼
 ┌──────────────────────────────────────────────────────────────┐
 │ F10 · TIEMPO REAL Y NOTIFICACIONES                           │
-│ SignalR · grupos · servicio en primer plano · acuse · escalado │
+│ SignalR · grupos · FCM campana vacía · acuse · escalado       │
 └───────────────────────────┬──────────────────────────────────┘
                             ▼
 ┌──────────────────────────────────────────────────────────────┐
@@ -100,14 +100,16 @@ Versión 1.0 · 2026-08-09
 
 ## 1.3 Dependencias externas — bloqueantes
 
-| Pendiente | Bloquea | Cuándo hace falta |
+| Dependencia | Bloquea | Cuándo hace falta |
 |---|---|---|
-| ⚠ **E2 — MDM** | F10 | **Antes de empezar F10.** Sin respuesta, la arquitectura de notificaciones no se puede cerrar |
-| ⚠ **E1 — Gafete** | F4 (escaneo) | Antes de F4. Si no hay código impreso, cambia la biblioteca y puede requerir reimprimir gafetes |
+| 🔴 **Gafetes impresos con QR** *(E1)* | Pruebas de campo de F4 | **Es una tarea física, no de software.** Diseño de etiqueta, impresión y distribución a ~160 personas tiene plazo propio y **no lo resuelve el equipo de desarrollo**. Hay que arrancarlo ya |
+| ⚠ **E5 — salida a internet** | F10 | **Antes de empezar F10.** FCM necesita que los teléfonos alcancen los servidores de Google. Si la Wi-Fi de planta está aislada, hay que abrir salida o volver a una solución interna |
 | Umbrales de fatiga *(A4)* | Calibración, **no construcción** | F5 se construye con umbrales configurables vacíos. Los valores llegan con el piloto |
 | Horarios de turno *(C6)* | F4 | Dato de configuración, no de código |
-| ⚠ E3, E4, E5 | F0 (empaquetado), F10 | Antes del primer despliegue a preproducción |
+| ⚠ E3, E4 | F0 (empaquetado) | Antes del primer despliegue a preproducción |
 | ⚠ E7 — KPIs | Medición | No bloquea construcción |
+
+> **Ya no bloquean nada:** E1 quedó cerrada (QR) y E2 desapareció como dependencia — la decisión de D5 eliminó el requisito de MDM. Lo único que quedó en su lugar es una dependencia **física**: imprimir los gafetes.
 
 ---
 
@@ -189,7 +191,7 @@ Cada fase declara: **entra** (qué necesita) · **sale** (entregable) · **se ve
 - ✅ Dos supervisores capturando a la misma persona: **exactamente un ganador**, con mensaje nominal *(B1)*.
 - ✅ El escaneo **nunca** asienta sin el modal de identidad *(§12.2)*.
 
-⚠ Requiere `PENDIENTE-E1` resuelto antes de empezar.
+⚠ **Las pruebas de campo requieren los gafetes ya impresos con QR** *(E1)*. La construcción puede avanzar con QR generados en papel para pruebas, pero el piloto no.
 
 ## F5 · Modelo de fatiga
 
@@ -280,16 +282,18 @@ Cada fase declara: **entra** (qué necesita) · **sale** (entregable) · **se ve
 
 | | |
 |---|---|
-| **Entra** | F9 · ⚠ **`PENDIENTE-E2` resuelto** |
-| **Sale** | SignalR con grupos por alcance · eventos · servicio en primer plano · resiliencia · **acuse y escalado** · panel *"supervisor no localizable"* |
-| **Se verifica con** | Un supervisor con la app en segundo plano recibe la notificación de un tránsito entrante; y una notificación crítica sin acuse aparece escalada en el panel del Coordinador |
+| **Entra** | F9 · ⚠ **E5 confirmado** (salida a internet para FCM) |
+| **Sale** | SignalR con grupos por alcance · eventos · **FCM como campana vacía** · descarga del contenido real desde el servidor · **acuse y escalado** · panel *"supervisor no localizable"* |
+| **Se verifica con** | Un supervisor **con la app cerrada** recibe la notificación de un tránsito entrante; y una notificación crítica sin acuse aparece escalada en el panel del Coordinador |
 | **No incluye** | — |
 
 **Criterio de salida bloqueante:**
-- ✅ **Ninguna llamada de red fuera del servidor de planta** — verificado por prueba *(§12.1)*.
+- ✅ **La carga útil de FCM no contiene ningún campo de negocio** — verificado por prueba que inspecciona el objeto enviado *(§12.1, D5)*.
+- ✅ Ninguna llamada de red fuera del servidor de planta y los extremos de FCM.
 - ✅ La suscripción a grupos la asigna el servidor; el cliente **no puede pedirla** *(§2.2)*.
 - ✅ `AvisoFatigaPlanta` **sin identidad** — verificado por prueba de carga útil *(D2)*.
 - ✅ Toda notificación crítica sin acuse **escala** *(D5)*.
+- ✅ Entrega verificada **con la app forzada a cerrarse**, no solo en segundo plano.
 
 ## F11 · Modo sin conexión
 
@@ -596,8 +600,9 @@ Antes del lanzamiento completo:
 
 | Riesgo | Impacto | Mitigación |
 |---|---|---|
-| **`PENDIENTE-E2` sin respuesta** | Bloquea F10 | Preguntarlo **ahora**. Es la pendiente de mayor impacto del proyecto |
-| **`PENDIENTE-E1` sin respuesta** | Bloquea F4 | Preguntarlo antes de F4. Puede implicar reimprimir gafetes, que tiene plazo propio |
+| **Gafetes sin imprimir a tiempo** | Bloquea las pruebas de campo de F4 y el piloto | **Arrancar la impresión ya.** Es tarea física con plazo propio, ajena al desarrollo. Especificación en [00 §E1](00_DECISIONES.md) |
+| **Wi-Fi de planta sin salida a internet** *(E5)* | FCM no entrega — bloquea F10 | Confirmarlo antes de F10. Si está aislada: abrir salida hacia FCM o volver a una solución interna |
+| **Alguien "mejora" la notificación añadiendo el nombre** | Sacaría datos de personal hacia un tercero | Prueba que inspecciona la carga útil de FCM y falla el build si aparece cualquier campo de negocio |
 | Umbrales sin calibrar | F5 y F7 se prueban con valores provisionales | Configurables desde el diseño. Se calibran en el piloto |
 | El aislamiento se relaja "temporalmente" para depurar | Fuga de datos médicos | La suite de seguridad es bloqueante en cada PR, no solo antes de producción |
 | Presión por añadir cola offline | Contradice §12.1 | Documentado como antipatrón prohibido en §3.3 |
@@ -614,13 +619,13 @@ F0  Cimientos ......................... base, semillas (¡A1!), CI
 F1  Identidad y aislamiento ........... ⛔ bloqueante para todo
 F2  Personal y puestos ................ vocabulario médico, umbrales
 F3  Validación ........................ ⛔ puerta única de escritura
-F4  Asignación y jornada .............. barrido, escalera, ventana    [⚠E1]
+F4  Asignación y jornada .............. barrido, escalera, ventana  [gafetes QR]
 F5  Fatiga ............................ reloj por puesto, exceso relativo
 F6  Movimiento ........................ tránsito, reserva, caducidad
 F7  Relevos ........................... requiere F5 + F6
 F8  Extracción inversa y C15 .......... excepciones al flujo normal
 F9  Contingencias y estadística ....... paros, lotes, eficiencia
-F10 Tiempo real y notificaciones ...... requiere E2 resuelto          [⚠E2]
+F10 Tiempo real y notificaciones ...... SignalR + FCM campana vacía    [⚠E5]
 F11 Sin conexión ...................... caché cifrada, bloqueo defensivo
 F12 Cierre, histórico, piloto ......... criterio de lanzamiento
 ```
@@ -643,7 +648,9 @@ F12 Cierre, histórico, piloto ......... criterio de lanzamiento
 | Sin cola offline | §12.1 |
 | Recepción individual | C8 |
 | Cálculo en servidor | C4 |
-| MDM bloquea F10 | D5, ⚠ E2 |
+| FCM campana vacía · sin MDM | D5, E2, F3 |
+| Gafetes con QR como dependencia física | E1 |
+| Coordinador en teléfono | F4 |
 | Ventana entre turnos | §1.1, [04 §11.4](04_ESQUEMA_BACKEND.md) |
 | Expansión y contracción | Anexo §3 |
 | Criterio de fracaso del piloto | [PRD §5.4](01_PRD.md) |

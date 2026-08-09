@@ -12,6 +12,40 @@ Versión 1.0 · 2026-08-08
 
 # 1 · Mapa de navegación
 
+## 1.0 Alta del dispositivo — solo la primera vez *(F3)*
+
+```
+        (aplicación recién instalada, sin servidor configurado)
+                                 │
+                                 ▼
+                    ┌────────────────────────────┐
+                    │  [Alta de dispositivo]     │
+                    │                            │
+                    │  "Escanea el código que    │
+                    │   te muestra el            │
+                    │   Coordinador"             │
+                    │                            │
+                    │      [ Abrir cámara ]      │
+                    └─────────────┬──────────────┘
+                                  │
+                    escanea el QR con la URL del servidor
+                                  │
+                                  ▼
+                    <¿el servidor responde?>
+                         │                │
+                        NO               SÍ
+                         │                │
+                         ▼                ▼
+              ⛔ "No se pudo llegar   (guardar URL)
+                 a ese servidor.      ➡ continúa en 1.1
+                 Revisa que estés
+                 en la red de planta."
+```
+
+> **Cero tecleo, a propósito** *(§12.3)*. Escribir una dirección con guantes, de pie, es exactamente el tipo de fricción que hace que alguien pida ayuda o lo deje a medias. El escáner ya existe para los gafetes *(E1)*: reutilizarlo aquí no cuesta nada y elimina el único momento en que habría que teclear.
+>
+> El Coordinador genera ese QR desde `[Datos maestros] → [Alta de dispositivo]`.
+
 ## 1.1 Entrada común
 
 ```
@@ -20,6 +54,11 @@ Versión 1.0 · 2026-08-08
                         │  splash + verif. │
                         └────────┬─────────┘
                                  │
+                    <¿Hay servidor configurado?>
+                         │                      │
+                        NO ──► [Alta de dispositivo] (1.0)
+                                                │
+                                                ▼
                     <¿Sesión válida en el dispositivo?>
                          │                      │
                         NO                     SÍ
@@ -118,6 +157,8 @@ Su raíz es distinta *(C7)*: **no hay malla de puestos**, porque las mesas de en
 
 ## 1.4 Rutas del Coordinador
 
+**El Coordinador opera desde teléfono, igual que el supervisor** *(F4)*. No hay consola web: §2.1.10 exige que todo dato maestro se edite desde la aplicación, así que estas rutas tienen que funcionar con el pulgar.
+
 ```
 [Panel de Planta]  ← raíz: las 10 líneas en vivo
    │
@@ -140,9 +181,11 @@ Su raíz es distinta *(C7)*: **no hay malla de puestos**, porque las mesas de en
    │      └─→ [Reincorporar desde retiro temporal]   (C2)
    │
    ├─→ [Datos maestros]          líneas, puestos, SKU, turnos, supervisores, catálogos
-   │      └─→ [Prioridad de líneas]     reordenable en caliente (B8)
-   │      └─→ [Proximidad de líneas]    tabla 10×9 editable (A1, A3)
+   │      └─→ [Prioridad de líneas]     lista de 10, reordenable arrastrando (B8)
+   │      └─→ [Proximidad de líneas]    elegir línea → reordenar sus 9 destinos
+   │      │                              ⚠ NUNCA como cuadrícula 10×9 (A1, A3, F4)
    │      └─→ [Parámetros]              todos los de §12.6
+   │      └─→ [Alta de dispositivo]     genera el QR con la URL (F3)
    │
    ├─→ [Alertas]                 escalados, tránsitos caducados, planta agotada,
    │                             supervisor no localizable
@@ -161,7 +204,9 @@ Qué evento dispara qué. Lo que no está en esta tabla no cambia de pantalla po
 | Gatillo | Tipo | Qué dispara | Ref. |
 |---|---|---|---|
 | Toque en un puesto de la malla | Táctil | Abre `[Detalle de puesto]` | §2.2.1 |
-| **Escaneo de gafete** | Cámara | Resuelve ficha → `[Confirmar identidad]`. **Nunca asienta por sí solo** | §12.2 |
+| **Escaneo de QR de gafete** | Cámara | Resuelve ficha → `[Confirmar identidad]`. **Nunca asienta por sí solo** | §12.2, E1 |
+| **Escaneo de QR de servidor** | Cámara | Configura el dispositivo. Solo en la primera instalación | F3 |
+| **Notificación recibida con la app cerrada** | FCM | Despierta la app, descarga el contenido real del servidor y lo acusa | D5 |
 | Confirmación deliberada en el modal | Táctil | Consolida la asignación | §12.2 |
 | **Cruce de umbral *sugerido*** | Cronómetro servidor | «Aviso a **todos** los supervisores» + entra a cola de L8 | §9.4 p1, D2 |
 | **Cruce de umbral *crítico*** | Cronómetro servidor | «Re-notificación única» + salta al frente de la cola | B9 |
@@ -361,7 +406,7 @@ El Coordinador gatilla el arranque
         ├──→ [Escáner de gafete]      ├──→ [Búsqueda manual]
         │      resuelve por el número │      por nombre o ficha
         │      impreso en el gafete   │      · solo personal DISPONIBLE
-        │      ⚠ PENDIENTE-E1         │      · primero los que están
+        │      resuelve QR (E1)      │      · primero los que están
         │                             │        físicamente en MI línea
         └──────────────┬──────────────┘
                        ▼

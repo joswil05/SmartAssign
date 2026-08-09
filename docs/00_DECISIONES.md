@@ -658,29 +658,57 @@ B5 aplica a N2 y N3: no se extrae de una línea que quedaría por debajo de su m
 
 *Impacta:* 03, 02, 05.
 
-## D5 · Notificaciones con la app cerrada — 🟢 Requisito del cliente · arquitectura 🔵 propuesta
+## D5 · Notificaciones con la app cerrada — 🟢 Cerrada — cliente
 
-> **Requisito del cliente, calificado de vital: las notificaciones deben llegar a supervisores y Coordinador aunque no tengan la app abierta.**
+**Dos instrucciones del cliente, y hay que leerlas juntas:**
 
-Y §12.1 prohíbe que ningún dato de personal salga hacia servicios de terceros. Se resuelve con una arquitectura de tres capas **enteramente dentro de la red de planta**:
+> 1. *"Las notificaciones tienen que llegar sí o sí a los usuarios de la app."*
+> 2. *"Haz lo que sea más conveniente sin complicar las cosas. No priorices tanto la seguridad en ese aspecto: son solo notificaciones."*
 
-**Capa 1 — Canal.** Servicio en primer plano (`FOREGROUND_SERVICE_DATA_SYNC`) con notificación persistente, manteniendo una conexión permanente contra el servidor de planta. Sobrevive a que la app no esté en primer plano y a que se cierre desde el conmutador de aplicaciones.
+### Resolución: FCM como campana vacía
 
-**Capa 2 — Resiliencia.** Arranque en `BOOT_COMPLETED`; exención de optimización de batería; watchdog con alarma exacta que verifica que el servicio vive y lo reinicia; reconexión con retroceso exponencial.
+El servidor envía por **Firebase Cloud Messaging** una notificación **sin contenido de negocio**: ni nombre, ni ficha, ni línea, ni puesto. Solo un identificador opaco de evento. La app despierta, se autentica contra el servidor de planta y **descarga el contenido real por HTTPS**.
 
-**Capa 3 — Garantía de entrega.** El servidor marca cada notificación como **entregada o no entregada**. Si una notificación crítica no se acusa en un tiempo configurable, **escala al Coordinador** y aparece en su panel como *"supervisor no localizable"*.
+```
+Servidor de planta ──[ping vacío: {"e":"a91f"}]──► FCM ──► teléfono
+                                                            │
+        ┌───────────────────────────────────────────────────┘
+        ▼
+   la app despierta y pide el contenido real
+   GET /notificaciones/a91f  ──► servidor de planta (HTTPS)
+        │
+        ▼
+   "Viene María López a relevar el Puesto 3"
+```
 
-> **Por qué la capa 3 es la que de verdad cumple el requisito:** ninguna app puede garantizar entrega en Android al 100 %. Lo que sí se puede garantizar es que **nadie crea que se notificó cuando no se notificó**. La capa 3 convierte un fallo silencioso en información operativa, que es la misma lógica del §1.3 y del §12.4.
+**Qué sale hacia Google:** únicamente el **token del dispositivo**, que identifica al teléfono, no a una persona de la plantilla. **Ningún dato de personal sale hacia terceros** — §12.1 se sigue cumpliendo al pie de la letra, no por interpretación laxa.
 
-### ⚠ Dependencia dura: MDM / Device Owner
+### Por qué esto es lo más simple
 
-Un *force-stop* del usuario, o las políticas agresivas de ciertos fabricantes, matan el servicio, y **ninguna aplicación Android puede evitarlo sin política de dispositivo**. Por tanto:
+Es literalmente lo que el cliente pidió: FCM entrega con la app cerrada, con el teléfono en reposo, y tras un reinicio, **sin nada de lo siguiente**:
 
-> **MDM / Device Owner asciende de conveniencia de despliegue a requisito de arquitectura.** Con Device Owner se bloquea el force-stop, se fija la exención de batería por política y se garantiza el arranque tras reinicio.
+| Se elimina | Era necesario en la propuesta anterior |
+|---|---|
+| Servicio en primer plano con notificación permanente | Sí |
+| Arranque en `BOOT_COMPLETED` | Sí |
+| Exención de optimización de batería | Sí |
+| Watchdog con alarma exacta | Sí |
+| **MDM / Device Owner como requisito de arquitectura** | **Sí — era la dependencia más cara del proyecto** |
 
-**Si no hay MDM**, la única vía que entrega con la app forzada a cerrarse es FCM. En ese caso la propuesta sería **FCM como campana vacía**: carga útil literalmente sin contenido, la app despierta y consulta al servidor de planta por HTTPS. Ningún dato de personal sale; lo único que sale es el token del dispositivo. **Es una decisión del cliente, no del equipo técnico.** Ver `⚠ PENDIENTE-E2`.
+Era la parte más frágil de la arquitectura y desaparece entera.
 
-*Impacta:* 05 (arquitectura completa), 04 (acuse de entrega), 06 (fase de notificaciones), 02.
+### Qué se conserva, y por qué
+
+**La capa de acuse y escalado se mantiene**, porque el requisito es *"sí o sí"*. FCM entrega con fiabilidad muy alta, pero no garantizada al 100 %.
+
+- El servidor marca cada notificación como **entregada / acusada / escalada**.
+- Una notificación crítica sin acuse en el tiempo configurado **escala al Coordinador** y aparece en su panel como *"supervisor no localizable"*.
+
+> **Es barato y es lo que convierte "sí o sí" en algo verificable.** No impide que un mensaje se pierda, pero impide que alguien **crea que se entregó cuando no fue así** — que es el §1.3 aplicado a la infraestructura.
+
+**La conexión permanente se mantiene solo mientras la app está abierta**, porque el panel en vivo la necesita de todas formas *(C4)*. FCM cubre exclusivamente el caso de app cerrada o en segundo plano. No son dos sistemas: son dos tramos del mismo.
+
+*Impacta:* 05, 04 (token de dispositivo + acuse), 06 (F10 deja de estar bloqueada), 02.
 
 ## D6 · Autenticación y sesión — 🔵 Cerrada
 
@@ -707,21 +735,128 @@ Ninguna fuente decía nada. Se define:
 
 ---
 
-# E · Entorno — abiertas
+# E · Entorno
 
-Estas no bloquean la redacción, pero sí condicionan decisiones concretas del TRD. Cada una aparece en los documentos afectados como `⚠ PENDIENTE-<ID>` con el supuesto bajo el que se procede.
+## E1 · Gafete con código QR — 🟢 Cerrada — cliente
+
+> *"El escáner se supone que es mediante códigos QR; el gafete o el código debería imprimirse."*
+
+- **QR que codifica el número de ficha**, leído con cámara y decodificado **en el dispositivo** — el modelo se ejecuta localmente y la imagen del gafete nunca sale del teléfono *(§12.1)*.
+- **Búsqueda manual siempre disponible** para gafetes dañados o ilegibles *(§12.2)*.
+
+### ⚠ Dependencia fuera del software
+
+> **Los gafetes hay que imprimirlos con su QR.** Es una tarea física con plazo propio —diseño de la etiqueta, impresión, distribución a ~160 personas— que **no la resuelve el equipo de desarrollo** y que bloquea las pruebas de campo de la fase F4.
+
+Recomendaciones para esa impresión, porque afectan a si el escaneo funciona en planta:
+- QR de al menos **25 × 25 mm**, con nivel de corrección de errores **M o superior** — la mica se raya y el QR debe seguir leyéndose con parte de su superficie dañada.
+- Contenido: **solo el número de ficha**, nada más. Ni nombre ni datos personales: un gafete se pierde y se fotografía.
+- Zona de silencio respetada alrededor del código.
+- **El número de ficha impreso en claro junto al QR**, para que la búsqueda manual del §12.2 sea posible cuando el código ya no se lee.
+
+*Impacta:* 05 (biblioteca de escaneo), 02 (flujo de registro), 06 (dependencia de F4).
+
+## E2 · Sin MDM — 🟢 Cerrada — cliente
+
+> *"Haz lo que sea más conveniente sin complicar las cosas."*
+
+**No se requiere MDM ni Device Owner.** La decisión de D5 (FCM como campana vacía) elimina la dependencia que lo hacía necesario.
+
+Distribución del APK: **autoalojada en el propio servidor de planta**, con verificación de versión dentro de la app. Ver F3.
+
+## E6 · El dossier PDF no es fuente adicional — 🟢 Cerrada — cliente
+
+`SmartAssign_Dossier_Arquitectura_Normas_APA7.pdf` es **el mismo contenido** ya proporcionado en la especificación funcional y el anexo. **No se lee y no se considera fuente de verdad.** Las fuentes son exclusivamente los dos documentos de [`fuentes/`](fuentes/).
+
+## Entorno — sigue abierto
 
 | ID | Estado | Supuesto de trabajo | Qué cambia si la respuesta es otra |
 |---|---|---|---|
-| **E1** Gafete | 🔴 Abierta | Código de barras Code 128 o QR que codifica el número de ficha, leído con cámara y decodificación **en el dispositivo** (sin salida de datos). Búsqueda manual siempre disponible (§12.2). | Si el gafete **no trae código**, hay que leer el número impreso por OCR: mucho menos fiable con guantes y mica rayada. La recomendación honesta pasaría a ser **reimprimir los gafetes con código**. |
-| **E2** MDM | 🔴 Abierta — **ahora bloqueante** | Existe MDM / Device Owner en los dispositivos de planta. | Sin MDM, D5 no se puede garantizar y hay que decidir entre aceptar FCM como campana vacía o aceptar el hueco. **Es la pendiente de mayor impacto.** |
-| **E3** Servidor | 🔴 Abierta | Windows Server on-premise + SQL Server 2019 o superior. | Si permiten Linux o contenedores, la elección de stack no cambia; solo cambia el empaquetado. |
-| **E4** Dispositivos | 🔴 Abierta | `minSdk 26` (Android 8.0) como piso conservador, `targetSdk` actual. | Un parque más moderno permite subir el piso y simplificar; uno más antiguo obliga a revisar el servicio en primer plano. |
-| **E5** Red | 🔴 Abierta | Wi-Fi interno de planta, sin salida a internet garantizada. | Es justo lo que sostiene la arquitectura de D5 sin terceros. |
-| **E6** Dossier PDF | 🔴 Abierta | `SmartAssign_Dossier_Arquitectura_Normas_APA7.pdf` **no** se ha leído y **no** se considera fuente de verdad. | Si lo es, hay que leerlo y revisar todo lo anterior contra él antes de construir. |
-| **E7** Línea base de KPIs | 🔴 Abierta | No existe medición previa (§1.1: "todo se estima al final del día"). Los KPIs del PRD se proponen con línea base *a establecer en las dos primeras semanas*. | Si hay cifras actuales, los objetivos del PRD dejan de ser propuestas y pasan a ser metas verificables desde el día uno. |
-| **A5b** Donante L4 | 🔴 Abierta | L4 queda excluida de la extracción inversa **por ser la solicitante** en el ejemplo, no de forma permanente. | Si nunca puede ser donante, la derivación de A5 necesita una exclusión fija adicional. |
-| **Git** | 🔴 Abierta | El proyecto **no es un repositorio git**. No se ha inicializado ninguno. | Sin control de versiones, estos documentos no tienen historial y las decisiones no son rastreables en el tiempo. Se recomienda `git init`. |
+| **E3** Servidor | 🔴 Abierta | Windows Server on-premise + SQL Server 2019 o superior. | Si permiten Linux o contenedores, la elección de stack no cambia; solo el empaquetado. |
+| **E4** Dispositivos | 🔴 Abierta | `minSdk 26` (Android 8.0), `targetSdk` actual. | Solo ajusta el piso de compatibilidad. **Ya no afecta a las notificaciones**: FCM funciona desde Android 4 y no depende del servicio en primer plano. |
+| **E5** Red | 🔴 Abierta | Wi-Fi interno de planta. | ⚠ **Ahora importa más que antes:** FCM necesita **salida a internet** desde los teléfonos. Si la Wi-Fi de planta está completamente aislada, hay que abrir salida hacia los servidores de FCM o volver a una solución interna. **Confirmar.** |
+| **E7** Línea base de KPIs | 🔴 Abierta | No existe medición previa (§1.1). KPIs propuestos con línea base *a establecer en las dos primeras semanas*. | Si hay cifras actuales, los objetivos del PRD pasan a ser metas verificables desde el día uno. |
+| **A5b** Donante L4 | 🔴 Abierta | L4 se excluye de la extracción inversa **por ser la solicitante** en el ejemplo, no de forma permanente. | Si nunca puede ser donante, la derivación de A5 necesita una exclusión fija adicional. |
+| **A7-orig** Liderazgo | 🔴 Abierta | Propuesta A7b: salta la matriz de categoría por acto deliberado de dos pasos con justificación, **nunca** las médicas. | Si no debe saltarla, el §4.1 queda sin vía de aplicación en déficit crítico. |
+| **A9-orig** Vigencia del anexo | 🟡 Supuesto | El anexo (declarado sobre la v3.0) sigue vigente: solo prescribe plataforma. | — |
+
+---
+
+# F · Arquitectura y despliegue
+
+El cliente delegó explícitamente esta decisión:
+
+> *"En el documento inicial describimos como punto exigido la necesidad de una API para el servidor. Quiero que en realidad hagas lo que creas más conveniente para la app según tu análisis, que haga que el despliegue de la app en los supervisores y coordinadores sea más sencillo y sin tantas complicaciones."*
+
+Fijo, no negociado: **Android**, **SQL Server** (estándar de la empresa), **panel del Coordinador también en teléfono**.
+
+## F1 · La API intermedia se confirma — 🔵 Cerrada, tras análisis delegado
+
+**Conclusión: la API se mantiene, y se mantiene precisamente porque es lo que hace el despliegue sencillo.** Quitarla no simplifica: lo complica o lo hace inviable.
+
+### Por qué no existe la alternativa "app directo a SQL Server"
+
+| Obstáculo | Consecuencia real |
+|---|---|
+| **No hay driver soportado** | Microsoft no publica driver de SQL Server para Android. Las alternativas son bibliotecas abandonadas. No es una opción de producción. |
+| **Credenciales en el APK** | Cada teléfono llevaría usuario y contraseña de la base. Cambiar esa contraseña obligaría a **redistribuir el APK a todos los dispositivos el mismo día**. Eso es lo contrario de un despliegue sencillo. |
+| **Puerto de base expuesto** | Habría que abrir el puerto de SQL Server a los teléfonos en la Wi-Fi de planta. |
+| **Parámetros configurables (§12.6)** | Umbrales de fatiga, ventana de arranque, piso de seguridad… vivirían en el dispositivo. **Cambiar un umbral exigiría desplegar una versión nueva de la app.** Con API, es un `UPDATE`. |
+| **Decisión en el dispositivo (§7)** | *"La decisión final nunca puede quedar del lado del dispositivo."* Sin servidor, las reglas médicas viajarían en cada APK y un cliente modificado podría saltarlas. |
+| **Estado en vivo (§2.1.5, C4)** | Los dos paneles se actualizan porque **alguien empuja** los cambios. Once teléfonos consultando la base cada pocos segundos es peor en todo. |
+| **Notificaciones (D5)** | FCM se envía **desde un servidor**. Un teléfono no notifica a otro. |
+
+### Lo que la API le ahorra a cada teléfono
+
+> **Configuración total de un dispositivo nuevo: una URL.** Sin credenciales de base, sin cadena de conexión, sin driver, sin certificados de cliente. Y esa URL ni siquiera se teclea — ver F3.
+
+## F2 · Un solo ejecutable, un solo proceso — 🔵 Cerrada
+
+La simplificación real va en el servidor, no en quitar la API:
+
+```
+Servidor de planta
+├── SmartAssign.Api        ← UN ejecutable autocontenido, servicio de Windows
+└── SQL Server             ← ya existe en la empresa
+
+Infraestructura nueva total: un servicio en un servidor.
+```
+
+**Descartado explícitamente por innecesario a esta escala:** contenedores, orquestación, microservicios, colas de mensajes, caché distribuida, proxy inverso adicional, servidor de identidad separado.
+
+> **Por qué:** son **11 dispositivos concurrentes** (10 supervisores + 1 Coordinador). Cada pieza añadida es una que alguien tiene que mantener a las tres de la mañana cuando un supervisor no puede colocar a nadie. El riesgo de este sistema es la corrección bajo concurrencia en momentos puntuales, no el volumen.
+
+## F3 · Distribución del APK y alta de dispositivo — 🔵 Cerrada
+
+| Aspecto | Solución |
+|---|---|
+| **Dónde vive el APK** | En el propio servidor de planta, servido por la misma API |
+| **Actualizaciones** | La app comprueba la versión al iniciar sesión y ofrece actualizar dentro de la app |
+| **Alta de un dispositivo** | El Coordinador muestra un **QR con la URL del servidor** y el supervisor lo escanea |
+| **MDM** | **No hace falta** |
+| **Play Store / Firebase App Distribution** | No se usan |
+| **Un APK para los dos roles** | Sí. El rol sale del inicio de sesión, no de una compilación distinta |
+
+> **El alta por QR aprovecha algo que la app ya tiene que saber hacer.** El escáner existe para los gafetes *(E1)*; usarlo también para la configuración inicial significa **cero tecleo** en el momento en que un supervisor con guantes tendría que escribir una URL. Es la misma capacidad, dos usos.
+
+**Compatibilidad de versiones** *(Anexo §3)*: distintas versiones conviven mientras la API mantenga compatibilidad. **No se fuerza a que todos los dispositivos actualicen el mismo día.**
+
+## F4 · El Coordinador también opera desde teléfono — 🟢 Cerrada — cliente
+
+**Un solo APK, dos roles, las mismas condiciones de uso.** Consecuencias que hay que resolver en diseño, porque el Coordinador maneja datos que no caben en una tabla de teléfono:
+
+| Qué maneja | Cómo se resuelve en teléfono |
+|---|---|
+| Padrón de ~160 personas *(§2.1.6)* | **Búsqueda primero**, no listado. Se entra por ficha o nombre, no recorriendo |
+| Panel de 10 líneas en vivo *(§2.1.5)* | Una fila por línea, cobertura como puntos discretos. Ya diseñado así |
+| **Prioridad de líneas** *(§2.1.3)* | Lista de 10 elementos **reordenable arrastrando**. Es la interacción táctil natural |
+| **Proximidad: tabla 10×9** *(A1, A3)* | ⚠ **No se muestra como matriz.** Se elige una línea y se reordenan sus 9 destinos arrastrando. Una cuadrícula de 90 celdas es inmanejable en un teléfono |
+| Puestos, SKU, catálogos *(§2.1.10)* | Listas con búsqueda + hoja de edición inferior |
+| Histórico *(§2.1.11)* | Resúmenes por jornada, con detalle bajo demanda |
+
+> **§2.1.10 es exigente y no se puede esquivar:** *"Ningún dato maestro puede quedar disponible solo por fuera de la aplicación."* Con el Coordinador en teléfono, **todo** —incluida la tabla de proximidad de 90 posiciones— debe ser editable desde ahí. Por eso la proximidad se edita línea por línea y no como cuadrícula.
+
+*Impacta:* 03 (interacciones de datos maestros), 01 (contexto de uso del Coordinador), 02 (rutas), 05 (un solo APK).
 
 ---
 
@@ -729,9 +864,12 @@ Estas no bloquean la redacción, pero sí condicionan decisiones concretas del T
 
 | Bloque | Cerradas | Supuestos | Abiertas |
 |---|---|---|---|
-| A · Correcciones a la fuente | 10 | 1 | 1 (A5b) |
+| A · Correcciones a la fuente | 10 | 1 | 2 (A5b, A7-orig) |
 | B · Motores | 12 | — | — |
 | C · Flujos y estados | 15 | — | — |
-| D · Seguridad | 6 | 1 | — |
-| E · Entorno | — | — | 8 |
-| **Total** | **43** | **2** | **9** |
+| D · Seguridad | 7 | 1 | — |
+| E · Entorno | 3 | — | 4 |
+| F · Arquitectura y despliegue | 4 | — | — |
+| **Total** | **51** | **2** | **6** |
+
+**Ninguna pendiente bloquea ya la construcción.** La más relevante es **E5**: FCM necesita salida a internet desde los teléfonos.

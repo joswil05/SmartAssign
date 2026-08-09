@@ -392,6 +392,50 @@ Línea discreta bajo la cabecera: `Datos de hace 2 min`.
 - Fila inferior con el agregado de planta.
 - **Sello de frescura del panel completo** *(C4, D4)*.
 
+> **El Coordinador también opera desde teléfono** *(F4)*, con las mismas condiciones del §12.3. No hay una versión de escritorio ni una consola web donde refugiar lo que no cabe: §2.1.10 exige que **todo** dato maestro se edite desde la aplicación.
+
+## 4.6 Datos maestros con el pulgar *(F4, §2.1.10)*
+
+El Coordinador administra volúmenes que normalmente vivirían en una tabla de escritorio. Cada uno necesita una interacción táctil propia — copiar una hoja de cálculo a una pantalla de 360 dp no funciona.
+
+| Dato | Volumen | Interacción |
+|---|---|---|
+| **Padrón** *(§2.1.6)* | ~160 personas | **Búsqueda primero.** La pantalla abre en el campo de búsqueda, no en una lista. Se entra por ficha o nombre; el listado completo es el último recurso, no el primero |
+| **Prioridad de líneas** *(§2.1.3, B8)* | 10 elementos | **Lista reordenable arrastrando.** Es exactamente lo que la interacción táctil hace bien: 10 filas de 72 dp con asa de arrastre a la derecha, dentro del alcance del pulgar |
+| **Proximidad** *(A1, A3)* | **10 × 9 = 90 posiciones** | ⚠ **Nunca como cuadrícula.** Se elige una línea de origen y se reordenan arrastrando sus 9 destinos. Es la misma interacción que la prioridad, repetida diez veces |
+| **Puestos** | ~300 | Agrupados por línea, plegados. Se despliega una línea a la vez |
+| **SKU, turnos, catálogos** | Decenas | Lista con búsqueda + hoja de edición inferior |
+| **Parámetros** *(§12.6)* | ~13 | Lista de fichas con valor actual visible y edición en hoja inferior |
+
+### Por qué la proximidad no se dibuja como matriz
+
+Una cuadrícula de 90 celdas en 360 dp da celdas de unos 36 dp: **por debajo del mínimo de 56 dp** de §5.1, imposible de acertar con guante, e ilegible sin zoom.
+
+Y hay una razón más fuerte que el tamaño: **la proximidad es un grafo dirigido y asimétrico** *(A3)*. Una matriz sugiere visualmente que la celda (L1, L5) y la celda (L5, L1) son la misma cosa, y **no lo son**. Presentarla como diez listas ordenadas —una por línea de origen— refleja el modelo real y hace evidente que cada línea tiene su propio recorrido.
+
+```
+┌─────────────────────────────────┐
+│  PROXIMIDAD · Origen: L10       │  ← selector de línea de origen
+├─────────────────────────────────┤
+│  1   L9                    ⣿    │  ← asa de arrastre
+│  2   L3                    ⣿    │
+│  3   L6                    ⣿    │
+│  4   L7                    ⣿    │
+│  ...                            │
+│  9   L8                    ⣿    │
+├─────────────────────────────────┤
+│         [ Guardar orden ]       │
+└─────────────────────────────────┘
+```
+
+### Pantalla de alta de dispositivo *(F3)*
+
+El Coordinador genera el QR con la URL del servidor. Requisitos:
+
+- QR **a pantalla completa**, con brillo forzado al máximo mientras está visible — se va a escanear con otro teléfono bajo iluminación industrial.
+- **La URL también en texto legible** debajo, como respaldo si la cámara del otro dispositivo falla.
+- Sin datos sensibles en el código: **solo la URL del servidor**.
+
 ## 4.5 Panel del Bolsón *(C7)*
 
 **No tiene malla de puestos.** Su estructura es distinta:
@@ -623,6 +667,7 @@ Reglas: nombre propio siempre que se hable de una persona · número de puesto y
 | 3.11 Cuatro estados | §12.4 |
 | 4.2 Zonas del pulgar | §12.3 |
 | 4.5 Panel Bolsón | C7, C8 |
+| 4.6 Datos maestros en teléfono | §2.1.10, F4, A1, A3 |
 | 5.1 56 dp | §12.3 |
 | 5.2 Contraste AAA | §12.3 |
 | 5.3 Nunca solo color | §12.2 |

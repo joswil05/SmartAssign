@@ -66,7 +66,7 @@ El sistema tiene **exactamente dos roles**, con alcances opuestos *(Parte II)*.
 |---|---|
 | **Cuántos** | Uno por planta |
 | **Alcance** | Las 10 líneas |
-| **Contexto de uso** | Oficina y planta. Puede sentarse a planificar. |
+| **Contexto de uso** | **Teléfono, igual que el supervisor** *(F4)*. Se mueve por la planta; no tiene un escritorio garantizado |
 | **Qué hace** | Planifica la jornada, mantiene el padrón, arranca el turno, interviene sobre cualquier línea, consulta el histórico |
 | **Su momento crítico** | La planificación del día anterior y el gatillo de arranque: si se equivoca ahí, el turno entero arranca mal |
 | **Su poder exclusivo** | Es el único que puede cruzar el aislamiento entre líneas *(§2.1.8)* y el único que puede ejecutar excepciones — siempre con justificación *(A6)* |
@@ -90,6 +90,12 @@ No es un tercer rol. Es un Supervisor cuya línea asignada es la L8, y eso le ca
 - **Tiene una capacidad que ningún otro supervisor tiene:** aceptar o rechazar propuestas de relevista para puestos de otras líneas.
 
 De la línea ajena ve **el puesto, nunca a la persona** *(D1)*.
+
+## 2.4 Un solo producto para los dos roles
+
+**Una sola aplicación Android, un solo instalable, dos roles.** El rol sale del inicio de sesión, no de una compilación distinta *(F3, F4)*.
+
+Esto tiene una consecuencia de producto que conviene tener presente desde el diseño: **el Coordinador administra los datos maestros desde un teléfono**. §2.1.10 no deja escapatoria — *"Ningún dato maestro puede quedar disponible solo por fuera de la aplicación"* — así que el padrón de ~160 personas, los catálogos, los parámetros y hasta la tabla de proximidad de 90 posiciones tienen que ser manejables con el pulgar. No hay una consola web de respaldo donde esconder lo incómodo.
 
 ## 2.3 Regla de supervisor único
 
@@ -177,8 +183,9 @@ Explícito, para que nadie lo espere:
 | Rol de Enfermería como usuario | §2.1.6 pone el registro médico bajo el Coordinador | C14 |
 | SKU, eficiencia, desperdicio y paros de la L8 | La fórmula del §11.4 exige un ritmo teórico de SKU que la L8 no tiene | C7 |
 | Multi-planta | Toda la especificación describe una planta de 10 líneas | — |
-| Cliente iOS o web | El anexo prescribe Android nativo | Anexo §1 |
-| Envío de datos de personal a cualquier servicio de terceros | **Prohibido explícitamente** | §12.1 |
+| Cliente iOS o web | Los dos roles operan desde Android, incluido el Coordinador | Anexo §1, F4 |
+| **Consola web de administración** | §2.1.10 exige que todo dato maestro se edite desde la aplicación. Añadir una consola crearía dos caminos para el mismo dato | §2.1.10, F4 |
+| Envío de datos de personal a cualquier servicio de terceros | **Prohibido explícitamente.** El único servicio externo es la mensajería de notificaciones, que transporta un identificador opaco y ningún dato de personal | §12.1, D5 |
 | Cola optimista de operaciones offline | §12.1 exige bloqueo defensivo, no encolado | §12.1 |
 | Nómina, costes, productividad individual | Ninguna fuente lo menciona | — |
 
@@ -890,20 +897,44 @@ Escenario: Sin dependencias externas
 > **Como** Supervisor y como Coordinador, **quiero** recibir los avisos aunque no tenga la app abierta, **para** no perderme un relevo o un tránsito entrante mientras estoy en otra cosa. *(D5)*
 
 ```gherkin
-Escenario: Entrega con la app en segundo plano
-  Dado que tengo la app en segundo plano
-  Cuando llega una notificación
-  Entonces la recibo en el teléfono
+Escenario: Entrega con la app cerrada
+  Dado que tengo la app cerrada y el teléfono en reposo
+  Cuando ocurre un evento que me concierne
+  Entonces recibo la notificación en el teléfono
 
-Escenario: Ningún dato sale de la planta
-  Cuando se entrega cualquier notificación
-  Entonces viaja únicamente por el servidor de planta
-  Y ningún dato de personal sale hacia un servicio de terceros
+Escenario: Ningún dato de personal sale hacia terceros
+  Cuando el servidor envía el aviso
+  Entonces el mensaje que sale hacia el servicio de mensajería
+  no contiene nombre, ficha, línea ni puesto
+  Y solo lleva un identificador opaco del evento
+  Y el contenido real se descarga del servidor de planta
 
 Escenario: El sistema no miente sobre lo que no entregó
   Dado que una notificación crítica no se acusa en el tiempo configurado
   Entonces escala al Coordinador
   Y aparece en su panel como "supervisor no localizable"
+```
+
+### HU-I2 · Poner en marcha un teléfono sin teclear nada
+> **Como** Supervisor, **quiero** dejar mi teléfono listo escaneando un código, **para** no tener que escribir una dirección con guantes. *(F3)*
+
+```gherkin
+Escenario: Alta por QR
+  Dado que instalo la aplicación por primera vez
+  Cuando escaneo el código que me muestra el Coordinador
+  Entonces el teléfono queda configurado
+  Y no he tecleado ninguna dirección
+
+Escenario: Actualización dentro de la app
+  Dado que hay una versión nueva disponible
+  Cuando inicio sesión
+  Entonces la aplicación me ofrece actualizar
+  Y puedo seguir trabajando si decido hacerlo después
+
+Escenario: Convivencia de versiones
+  Dado que otros dispositivos siguen en la versión anterior
+  Entonces siguen funcionando mientras el servidor mantenga compatibilidad
+  Y nadie queda obligado a actualizar el mismo día
 ```
 
 ---

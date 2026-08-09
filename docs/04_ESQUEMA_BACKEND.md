@@ -1071,11 +1071,52 @@ CREATE TABLE Notificacion (
 
 CREATE INDEX IX_Notif_sin_acuse ON Notificacion(criticidad, creada_en)
     WHERE acusada_en IS NULL;
+
+-- Token de mensajería por dispositivo (D5)
+CREATE TABLE DispositivoPush (
+    Id            INT IDENTITY PRIMARY KEY,
+    usuario_id    INT NOT NULL REFERENCES Usuario(Id),
+    device_id     NVARCHAR(120) NOT NULL,
+    push_token    NVARCHAR(400) NOT NULL,
+    plataforma    VARCHAR(10) NOT NULL DEFAULT 'android',
+    registrado_en DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
+    revocado_en   DATETIME2(0) NULL,
+
+    CONSTRAINT UQ_DispositivoPush UNIQUE (device_id)
+);
+
+CREATE INDEX IX_Push_activo ON DispositivoPush(usuario_id)
+    WHERE revocado_en IS NULL;
 ```
+
+> **`push_token` identifica un teléfono, no a una persona de la plantilla.** Es el único dato que sale hacia el servicio de mensajería. El contenido de `titulo`, `cuerpo` y `payload_json` **nunca** viaja por ese canal: se descarga del servidor de planta por HTTPS después de que el ping despierte la app *(D5)*.
+>
+> El token se revoca al cerrar sesión, junto con la sesión y la purga de la caché local *(D3)*.
 
 > **`entregada_en` / `acusada_en` / `escalada_en` son la capa 3 de D5.** El requisito del cliente es que las notificaciones lleguen aunque la app no esté abierta, y ninguna app Android puede garantizarlo al 100 %. Lo que sí se garantiza es que **nadie crea que se notificó cuando no se notificó**: una notificación crítica sin acuse escala al Coordinador y aparece en su panel como *"supervisor no localizable"*. Es el §1.3 aplicado a la infraestructura.
 
 **Contenido restringido `[SEGURIDAD DE DATOS]`** *(D2)*: el aviso de fatiga a todos los supervisores lleva `"L4 · Puesto 3 — relevo sugerido · 62 min"` y **ninguna identidad de persona**, ni en `titulo`, ni en `cuerpo`, ni en `payload_json`.
+
+---
+
+# 10.1 · Versión de la aplicación *(F3)*
+
+```sql
+CREATE TABLE VersionApp (
+    Id                INT IDENTITY PRIMARY KEY,
+    version_nombre    VARCHAR(20) NOT NULL,      -- '1.4.2'
+    version_codigo    INT NOT NULL UNIQUE,       -- entero incremental
+    ruta_apk          NVARCHAR(300) NOT NULL,
+    version_minima_api INT NOT NULL,             -- rompe compatibilidad por debajo
+    notas             NVARCHAR(600) NULL,
+    publicada_en      DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
+    vigente           BIT NOT NULL DEFAULT 1
+);
+
+CREATE UNIQUE INDEX UX_VersionApp_vigente ON VersionApp(vigente) WHERE vigente = 1;
+```
+
+> **`version_minima_api` es lo que permite la convivencia de versiones** que exige el Anexo §3: *"distintas versiones de la app pueden convivir mientras el API mantenga compatibilidad"*. La app solo se bloquea si su código de versión queda por debajo de ese mínimo; en cualquier otro caso, **se ofrece la actualización pero no se impone**. Forzar a 11 dispositivos a actualizar a mitad de turno es exactamente lo que el anexo quería evitar.
 
 ---
 
@@ -1166,4 +1207,6 @@ DESPLIEGUE 3 — CONTRAER
 | `Auditoria` con rechazos | §12.7 |
 | `Parametro` | §12.6 |
 | `Notificacion.acusada_en` | D5 |
+| `DispositivoPush.push_token` | D5 |
+| `VersionApp.version_minima_api` | Anexo §3, F3 |
 | Expansión y contracción | Anexo §3 |

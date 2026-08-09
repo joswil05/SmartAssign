@@ -3,7 +3,7 @@
 **Stack, integraciones y API, seguridad y rendimiento, políticas de escalabilidad.**
 Versión 1.0 · 2026-08-09
 
-> **De dónde parte.** El [Anexo de Arquitectura](fuentes/ANEXO_ARQUITECTURA_TECNICA_SMARTASSIGN.md) cierra tres decisiones que aquí no se reabren: **Android nativo**, **SQL Server**, y **una API intermedia obligatoria** — el teléfono nunca se conecta directo a la base. Este documento parte de ahí y define todo lo demás.
+> **De dónde parte.** Dos decisiones son fijas y no se negocian: **Android** (los dos roles operan desde teléfono, incluido el Coordinador — F4) y **SQL Server** (estándar ya operado por la empresa). La tercera —**la API intermedia**— fue delegada al equipo técnico y **se confirma tras el análisis de §1.2**: el teléfono nunca se conecta directo a la base, y esa es la razón por la que desplegar un dispositivo cuesta una URL.
 >
 > Regla de este documento: **ninguna decisión técnica sin la regla de negocio que la exige.** Si una elección no puede citar un `§` o una decisión del registro, es preferencia, y se marca como tal.
 
@@ -21,11 +21,50 @@ Versión 1.0 · 2026-08-09
 | **Base de datos** | SQL Server 2019+ | Anexo §1 — decisión cerrada |
 | **Tiempo real** | **SignalR** sobre WebSocket | §2.1.5, C4 — sin infraestructura adicional |
 | **Caché local** | Room + SQLCipher | §12.1, §12.2, D3 |
-| **Escaneo** | CameraX + ML Kit Barcode **en dispositivo** | §12.1 — nada sale de la planta |
+| **Escaneo** | CameraX + ML Kit **QR** en dispositivo | §12.1, E1 |
 | **Autenticación** | JWT propio + AD/Entra ID opcional | D6 |
-| **Distribución** | MDM interno | §12.1, D5, ⚠ E2 |
+| **Notificaciones** | **FCM como campana vacía** | D5 |
+| **Distribución** | **Autoalojada en el servidor de planta** | F3 |
 
-## 1.2 Backend: por qué ASP.NET Core
+## 1.2 Por qué existe la API intermedia
+
+El anexo la prescribe, pero el cliente delegó explícitamente la decisión: *"haz lo que creas más conveniente, que haga que el despliegue en supervisores y coordinadores sea más sencillo y sin tantas complicaciones."*
+
+**Conclusión tras el análisis: la API se mantiene, y se mantiene precisamente porque es lo que hace el despliegue sencillo.** No es una carga heredada; es la pieza que evita cargar cada teléfono con configuración.
+
+### La alternativa "app directo a SQL Server" no existe
+
+| Obstáculo | Consecuencia real en despliegue |
+|---|---|
+| **Sin driver soportado** | Microsoft no publica driver de SQL Server para Android. Las alternativas están abandonadas |
+| **Credenciales en el APK** | Cada teléfono llevaría usuario y contraseña de la base. **Rotar esa contraseña obligaría a redistribuir el APK a todos los dispositivos el mismo día** |
+| **Puerto expuesto** | Habría que abrir el puerto de SQL Server a los teléfonos de la Wi-Fi de planta |
+| **Parámetros §12.6** | Umbrales de fatiga, ventana de arranque, piso de seguridad vivirían en el dispositivo: **cambiar un umbral exigiría una versión nueva de la app** |
+| **Decisión en dispositivo (§7)** | Las reglas médicas viajarían en cada APK; un cliente modificado podría saltarlas |
+| **Estado en vivo (§2.1.5, C4)** | Los paneles se actualizan porque alguien **empuja**. Once teléfonos consultando la base en bucle es peor en todo |
+| **Notificaciones (D5)** | FCM se envía **desde un servidor**. Un teléfono no notifica a otro |
+
+### Lo que la API le ahorra a cada dispositivo
+
+> **Configuración total de un teléfono nuevo: una URL.** Sin credenciales de base, sin cadena de conexión, sin driver, sin certificado de cliente. Y esa URL no se teclea: se escanea de un QR que muestra el Coordinador *(F3)* — con el mismo escáner que ya existe para los gafetes.
+
+### Dónde sí se simplifica de verdad
+
+La simplificación va en el servidor, no en quitar la API:
+
+```
+Servidor de planta
+├── SmartAssign.Api     ← UN ejecutable autocontenido, servicio de Windows
+└── SQL Server          ← ya existe en la empresa
+
+Infraestructura nueva total: un servicio en un servidor.
+```
+
+**Descartado por innecesario a esta escala:** contenedores, orquestación, microservicios, colas de mensajes, caché distribuida, servidor de identidad separado.
+
+> Son **11 dispositivos concurrentes**. Cada pieza añadida es una que alguien tiene que mantener a las tres de la mañana cuando un supervisor no puede colocar a nadie.
+
+## 1.3 Backend: por qué ASP.NET Core
 
 El anexo no prescribe framework de servidor. La evaluación:
 
@@ -45,7 +84,7 @@ El anexo no prescribe framework de servidor. La evaluación:
 >
 > El segundo criterio es SignalR: §2.1.5 exige ver las 10 líneas en vivo y C4 exige que **todo registro se refleje en los dos paneles**. Con ASP.NET Core eso es una dependencia menos.
 
-## 1.3 ORM: EF Core con Dapper para lecturas
+## 1.4 ORM: EF Core con Dapper para lecturas
 
 **EF Core 8** para el modelo y las escrituras. **Dapper** para consultas de panel y colas.
 
@@ -60,7 +99,7 @@ El anexo no prescribe framework de servidor. La evaluación:
 >
 > **Por qué:** §7 exige que *"la decisión final nunca quede del lado del dispositivo"*. Si la validación viviera en el ORM, bastaría otro cliente con las mismas credenciales para saltarla. En el procedimiento almacenado, no.
 
-## 1.4 Cliente Android
+## 1.5 Cliente Android
 
 | Componente | Elección | Motivo |
 |---|---|---|
@@ -74,32 +113,45 @@ El anexo no prescribe framework de servidor. La evaluación:
 | Persistencia local | **Room + SQLCipher** | D3: datos médicos cifrados |
 | Claves | Android Keystore | D3 |
 | Cámara | CameraX | §12.2 |
-| Escaneo | **ML Kit Barcode, modelo en dispositivo** | §12.1: nada sale |
-| Trabajo en segundo plano | Foreground Service + WorkManager | D5 |
+| Escaneo | **ML Kit Barcode en modo QR, modelo en dispositivo** | §12.1, E1 |
+| Notificaciones | **FCM** (campana vacía) | D5 |
+| Trabajo en segundo plano | WorkManager para tareas puntuales | — |
 | `minSdk` | **26** (Android 8.0) | ⚠ `PENDIENTE-E4` |
 
-> **ML Kit en modo dispositivo, no en la nube.** §12.1 prohíbe que ningún dato de personal salga hacia servicios de terceros. El modelo empaquetado de ML Kit se ejecuta localmente y **no realiza ninguna llamada de red**: la imagen del gafete nunca sale del teléfono. La variante en la nube queda **prohibida** en este proyecto.
+> **ML Kit en modo dispositivo, no en la nube.** El modelo empaquetado se ejecuta localmente y **no realiza ninguna llamada de red**: la imagen del gafete nunca sale del teléfono. La variante en la nube queda **prohibida** en este proyecto *(§12.1)*.
 >
-> ⚠ `PENDIENTE-E1`: falta confirmar si el gafete lleva código de barras o QR. Si solo lleva el número impreso, hay que evaluar OCR, que es sensiblemente menos fiable con guantes y mica rayada — y la recomendación pasaría a ser reimprimir los gafetes.
+> **Ya no hace falta servicio en primer plano.** Con FCM *(D5)*, la app no necesita mantenerse viva para recibir avisos. Se elimina el servicio permanente, la notificación persistente, el arranque en `BOOT_COMPLETED`, el watchdog y la exención de batería.
+
+### El escáner tiene dos usos, no uno
+
+| Uso | Qué escanea |
+|---|---|
+| **Identificación de personal** | QR del gafete, que codifica el número de ficha *(§12.2, E1)* |
+| **Alta del dispositivo** | QR con la URL del servidor que muestra el Coordinador *(F3)* |
+
+> Reutilizar el escáner para la configuración inicial significa **cero tecleo** en el único momento en que un supervisor con guantes tendría que escribir una URL a mano.
 
 ---
 
 # 2 · Integraciones y APIs
 
-## 2.1 Servicios externos: ninguno
+## 2.1 Servicios externos: uno, y sin datos de personal
 
 > §12.1: **"Ningún dato de personal puede salir hacia servicios de terceros."**
 
 | Necesidad | Solución habitual | **Aquí** |
 |---|---|---|
-| Notificaciones push | Firebase Cloud Messaging | **Servidor propio de planta** *(D5)* |
-| Reconocimiento de código | API en la nube | **ML Kit en dispositivo** |
+| **Notificaciones push** | Firebase Cloud Messaging | **FCM como campana vacía** *(D5)* — ping sin contenido de negocio |
+| Reconocimiento de QR | API en la nube | **ML Kit en dispositivo** |
 | Telemetría de fallos | Crashlytics / Sentry alojado | **Registro local + envío al servidor propio** |
 | Analítica | Google Analytics | **Ninguna** |
 | Tipografías | Google Fonts | **Roboto del sistema** |
+| Distribución del APK | Play Store / App Distribution | **Autoalojada en el servidor de planta** *(F3)* |
 | Mapas / geolocalización | — | **No se usa** |
 
-**La aplicación no realiza ninguna llamada de red a ningún dominio que no sea el servidor de planta.** Se verifica con una prueba automatizada que falla el build si aparece cualquier host adicional en la configuración de red.
+**FCM es el único servicio externo, y no transporta ningún dato de personal.** La carga útil que sale del servidor es un identificador opaco de evento; el contenido real se descarga del servidor de planta por HTTPS. Lo único que sale hacia Google es el **token del dispositivo**, que identifica a un teléfono, no a una persona de la plantilla.
+
+**Verificación automatizada:** una prueba falla el build si la configuración de red contiene cualquier host que no sea el servidor de planta o los extremos de FCM, y otra verifica que **la carga útil de FCM no contiene ningún campo de negocio** *(§2.5)*.
 
 ## 2.2 Estilo de API: REST + SignalR
 
@@ -141,6 +193,18 @@ El anexo no prescribe framework de servidor. La evaluación:
 | `POST` | `/auth/pin/verify` | Reentrada durante el turno |
 | `POST` | `/auth/logout` | Revoca sesión y **ordena purga de la caché local** *(D3)* |
 | `GET` | `/auth/me` | Rol, nombre y **línea vigente** |
+
+### Dispositivo y notificaciones *(D5, F3)*
+
+| Método | Ruta | Notas |
+|---|---|---|
+| `GET` | `/app/version` | Versión vigente y `version_minima_api`. **Anónimo**: se consulta antes de tener sesión |
+| `GET` | `/app/apk` | Descarga del instalable desde el propio servidor |
+| `GET` | `/servidor/info` | Verificación al escanear el QR de alta: confirma que la URL responde |
+| `POST` | `/dispositivos/push-token` | Registra o renueva el token de mensajería |
+| `GET` | `/notificaciones/{id}` | **Contenido real** de la notificación, tras despertar por el ping |
+| `POST` | `/notificaciones/{id}/acuse` | Marca acusada. Sin esto, la crítica escala *(D5)* |
+| `GET` | `/notificaciones/pendientes` | Sincronización al volver al primer plano |
 
 ### Supervisor — línea
 
@@ -211,6 +275,7 @@ El anexo no prescribe framework de servidor. La evaluación:
 | `POST` | `/movimientos/{id}/cancelar` | Tránsito caducado *(B11)* |
 | `GET` | `/auditoria` | *(§12.7)* |
 | `GET` | `/historico/...` | *(§2.1.11)* |
+| `POST` | `/maestros/version-app` | Publica una versión nueva del APK *(F3)* |
 
 ## 2.4 Canal en vivo (SignalR)
 
@@ -241,41 +306,75 @@ El anexo no prescribe framework de servidor. La evaluación:
 >
 > `AvisoFatigaPlanta` es el único evento que llega a todos los supervisores, y por eso su carga útil está restringida por contrato: si algún día alguien añade el nombre del operario a ese evento, viola §2.2 para nueve supervisores a la vez. Hay una prueba automatizada que lo verifica.
 
-## 2.5 Notificaciones sin terceros *(D5)*
+## 2.5 Notificaciones — FCM como campana vacía *(D5)*
 
-> **Requisito del cliente, calificado de vital:** las notificaciones deben llegar a supervisores y Coordinador **aunque no tengan la app abierta**. Y §12.1 prohíbe servicios de terceros.
+> **Requisito del cliente:** las notificaciones deben llegar **sí o sí**, aunque la app no esté abierta. Y: *"haz lo que sea más conveniente sin complicar las cosas."*
 
-**Arquitectura de tres capas, íntegramente dentro de la red de planta:**
+### El mecanismo
 
 ```
-CAPA 1 — CANAL
-  Foreground Service (FOREGROUND_SERVICE_DATA_SYNC)
-  + notificación persistente
-  + conexión SignalR permanente al servidor de planta
-  → sobrevive a app en segundo plano y a cierre desde el conmutador
-
-CAPA 2 — RESILIENCIA
-  · BOOT_COMPLETED → arranque tras reinicio
-  · exención de optimización de batería
-  · watchdog con AlarmManager.setExactAndAllowWhileIdle
-  · reconexión con retroceso exponencial (1s → 60s, con jitter)
-
-CAPA 3 — GARANTÍA DE ENTREGA
-  · el servidor marca entregada / acusada / escalada
-  · notificación crítica sin acuse en el tiempo configurado
-    → escala al Coordinador
-    → aparece en su panel como "supervisor no localizable"
+Servidor de planta
+   │  1. ocurre un evento (relevo aceptado, tránsito entrante, alerta)
+   │
+   ├──► inserta en Notificacion (tabla propia, contenido completo)
+   │
+   └──► envía a FCM un ping SIN CONTENIDO DE NEGOCIO
+            {"data": {"e": "a91f3c"}}
+            ── ni nombre, ni ficha, ni línea, ni puesto ──
+                        │
+                        ▼
+                      FCM ──► teléfono (app cerrada, en reposo, tras reinicio)
+                        │
+                        ▼
+              la app despierta y pide el contenido real
+              GET /notificaciones/a91f3c   → servidor de planta, HTTPS, con JWT
+                        │
+                        ▼
+              "Viene María López a relevar el Puesto 3"
+                        │
+                        ▼
+              POST /notificaciones/a91f3c/acuse
 ```
 
-> **La capa 3 es la que de verdad cumple el requisito.** Ninguna app Android garantiza entrega al 100 %. Lo que sí se garantiza es que **nadie crea que se notificó cuando no se notificó** — que es el §1.3 aplicado a la infraestructura, y lo que convierte un fallo silencioso en información operativa.
+**Contrato de carga útil `[SEGURIDAD DE DATOS]`:** el mensaje FCM contiene **exclusivamente** un identificador opaco. Hay una prueba automatizada que inspecciona el objeto enviado y **falla el build si aparece cualquier campo de negocio**. Sin esa prueba, el primero que quiera "mejorar la experiencia" añadirá el nombre al título de la notificación y sacará datos de personal hacia un tercero sin que nadie lo note.
 
-### ⚠ Dependencia dura: MDM / Device Owner — `PENDIENTE-E2`
+### Por qué esto es lo más simple
 
-Un *force-stop* del usuario, o las políticas agresivas de ciertos fabricantes, matan el servicio, y **ninguna aplicación Android puede evitarlo sin política de dispositivo**.
+FCM entrega con la app cerrada, con el teléfono en reposo (Doze) y tras un reinicio, **sin nada de esto**:
 
-> **MDM / Device Owner deja de ser conveniencia de despliegue y pasa a ser requisito de arquitectura.** Con Device Owner: se bloquea el force-stop, se fija la exención de batería por política, se garantiza el arranque tras reinicio y se instala el APK de forma silenciosa.
+| Se elimina | |
+|---|---|
+| Servicio en primer plano con notificación permanente | ✅ fuera |
+| Arranque en `BOOT_COMPLETED` | ✅ fuera |
+| Exención de optimización de batería | ✅ fuera |
+| Watchdog con alarma exacta | ✅ fuera |
+| **MDM / Device Owner** | ✅ fuera — era la dependencia más cara del proyecto |
 
-**Si no hay MDM**, la única vía que entrega con la app forzada a cerrarse es FCM. La propuesta sería **FCM como campana vacía**: carga útil literalmente sin contenido, la app despierta y consulta al servidor de planta por HTTPS. Ningún dato de personal sale; lo único que sale es el token del dispositivo. **Es decisión del cliente, no del equipo técnico.**
+Era la parte más frágil de la arquitectura y desaparece entera. Además, deja de importar el fabricante del teléfono: las políticas agresivas de ciertas marcas matan servicios en segundo plano, pero **no** bloquean FCM de alta prioridad.
+
+### Capa de garantía — lo único que se conserva
+
+El requisito es *"sí o sí"*, y FCM entrega con fiabilidad muy alta pero no garantizada. Por eso se mantiene el acuse:
+
+- El servidor marca cada notificación como **entregada / acusada / escalada**.
+- Una notificación **crítica** sin acuse en el tiempo configurado **escala al Coordinador** y aparece en su panel como *"supervisor no localizable"*.
+
+> **Es barato y es lo que hace verificable el "sí o sí".** No impide que un mensaje se pierda; impide que alguien **crea que llegó cuando no llegó**. Es el §1.3 aplicado a la infraestructura: el sistema nunca miente sobre lo que está pasando.
+
+### Relación con SignalR
+
+No son dos sistemas: son dos tramos del mismo.
+
+| Situación de la app | Canal |
+|---|---|
+| **Abierta y en uso** | SignalR — el panel en vivo lo necesita de todas formas *(C4)* |
+| **Segundo plano o cerrada** | **FCM** → despierta → descarga → acusa |
+
+Al volver al primer plano, la app reconecta SignalR y **sincroniza lo que ocurrió mientras estuvo fuera**, consultando las notificaciones sin acusar.
+
+### ⚠ `PENDIENTE-E5` — salida a internet
+
+FCM necesita que los teléfonos alcancen los servidores de Google. **Si la Wi-Fi de planta está completamente aislada, esto no funciona** y habría que abrir salida hacia FCM o volver a una solución interna. Es la pendiente más relevante que queda, y hay que confirmarla antes de la fase F10.
 
 ---
 
@@ -593,18 +692,39 @@ Windows Server (⚠ PENDIENTE-E3)
 
 **Migraciones:** solo entre turnos, con verificación previa de cero tránsitos abiertos y cero lotes abiertos *(véase [04 §11.4](04_ESQUEMA_BACKEND.md))*.
 
-## 7.2 Distribución del APK ⚠ `PENDIENTE-E2`
+## 7.2 Distribución del APK y alta de dispositivo *(F3)*
 
-> El anexo declara la distribución **fuera de su alcance**. Aquí se cubre porque fue solicitado explícitamente, y porque **D5 la convirtió en dependencia de arquitectura**.
+**Autoalojada en el propio servidor de planta.** Sin MDM, sin Play Store, sin Firebase App Distribution — un sistema menos que administrar.
 
-| Opción | Veredicto |
+```
+1 · PRIMERA INSTALACIÓN
+    El Coordinador abre [Alta de dispositivo] y muestra un QR
+    con la URL del servidor
+              │
+    El supervisor escanea ese QR con la app recién instalada
+              │
+    La app queda configurada. Cero tecleo.
+
+2 · ACTUALIZACIONES
+    Al iniciar sesión, la app consulta GET /app/version
+              │
+    ¿Hay versión nueva? → ofrece actualizar dentro de la app
+              │
+    Descarga el APK del mismo servidor e invoca al instalador
+
+3 · CONVIVENCIA DE VERSIONES
+    La API mantiene compatibilidad dentro de v1.
+    NO se fuerza a que todos los dispositivos actualicen el mismo día
+    (Anexo §3). Solo se bloquea si la API declara incompatibilidad dura.
+```
+
+**Un solo APK para los dos roles.** El rol sale del inicio de sesión, no de una compilación distinta *(F4)*. No hay "app de coordinador" y "app de supervisor" que mantener por separado.
+
+| Opción descartada | Motivo |
 |---|---|
-| **MDM / Device Owner** | ✅ **Recomendada.** Instalación silenciosa, política de batería, force-stop bloqueado, arranque garantizado. **Es lo que hace viable D5** |
-| Distribución interna autoalojada | ✅ Aceptable sin MDM. APK servido desde el propio servidor + verificación de versión en la app. Cumple §12.1, pero **no resuelve D5** |
-| Firebase App Distribution | ❌ Servicio de terceros |
-| Pista interna de Google Play | ❌ Servicio de terceros |
-
-**Compatibilidad de versiones** *(Anexo §3)*: el API mantiene compatibilidad dentro de `v1`; distintas versiones de la app conviven; **no se fuerza a que 160 dispositivos actualicen el mismo día**. La app avisa de versión obsoleta y solo bloquea si el API declara incompatibilidad dura.
+| MDM / Device Owner | **Ya no hace falta**: D5 con FCM elimina la dependencia que lo justificaba |
+| Firebase App Distribution | Un servicio más que administrar, sin ventaja sobre alojarlo uno mismo |
+| Pista interna de Google Play | Requiere cuenta de desarrollador y proceso de publicación para una app interna de 11 dispositivos |
 
 ## 7.3 Integración y entrega continuas
 
@@ -648,12 +768,16 @@ PRODUCCIÓN
 
 | ID | Impacto si cambia |
 |---|---|
-| ⚠ **E2 — MDM** | **El de mayor impacto.** Sin MDM, D5 no se garantiza y hay que decidir entre FCM como campana vacía o aceptar el hueco |
-| ⚠ **E1 — Gafete** | Sin código impreso, hay que evaluar OCR y probablemente reimprimir gafetes |
+| ⚠ **E5 — Salida a internet** | **El de mayor impacto ahora.** FCM necesita que los teléfonos alcancen los servidores de Google. Si la Wi-Fi de planta está totalmente aislada, hay que abrir salida o volver a una solución interna |
 | ⚠ E3 — Servidor | Confirma el empaquetado; no cambia el stack |
-| ⚠ E4 — Dispositivos | Ajusta `minSdk` y la viabilidad del servicio en primer plano |
-| ⚠ E5 — Red | Confirma que la arquitectura sin terceros es viable |
+| ⚠ E4 — Dispositivos | Ajusta `minSdk`. Ya no afecta a notificaciones |
 | ⚠ D7 — Retención | Requiere validación legal |
+
+**Cerradas desde la versión anterior de este documento:** E1 (QR), E2 (sin MDM), E6 (el PDF no es fuente), F1–F4 (arquitectura de despliegue).
+
+### Dependencia fuera del software
+
+> **Los gafetes hay que imprimirlos con su QR** *(E1)*. Es una tarea física con plazo propio que no resuelve el equipo de desarrollo y que **bloquea las pruebas de campo de la fase F4**. Especificación de impresión en [00 §E1](00_DECISIONES.md).
 
 ---
 
@@ -661,7 +785,13 @@ PRODUCCIÓN
 
 | Decisión técnica | Origen |
 |---|---|
-| Android nativo · SQL Server · API intermedia | Anexo §1, §2 |
+| Android · SQL Server | Cliente, decisión fija |
+| **API intermedia confirmada** | **F1** — delegada al equipo técnico y analizada |
+| Un solo ejecutable, sin contenedores | F2 |
+| APK autoalojado · alta por QR · un APK para dos roles | F3, F4 |
+| Coordinador en teléfono | F4 |
+| **FCM como campana vacía** | **D5** — decisión del cliente sobre el medio |
+| Escaneo QR en dispositivo | E1, §12.1 |
 | ASP.NET Core | Anexo §2 (continuidad de ecosistema), §2.1.5, C4 |
 | Escritura solo por procedimientos almacenados | §7 (encabezado) |
 | SignalR con grupos por alcance | §2.1.5, §2.2, C4, D2 |
@@ -669,8 +799,8 @@ PRODUCCIÓN
 | `detail` + `siguientePaso` obligatorios | §1.3, §12.4 |
 | Idempotencia en toda escritura | §12.4 |
 | ML Kit en dispositivo | §12.1 |
-| Sin FCM · servicio en primer plano | §12.1, D5 |
-| MDM como requisito de arquitectura | D5 |
+| FCM sin datos de negocio · contrato de carga útil verificado | §12.1, D5 |
+| Sin MDM · APK autoalojado | E2, F3 |
 | Fijación de certificado | §12.1 |
 | Caché cifrada con alcance de línea | §12.1, §12.2, D3 |
 | Coordinador sin caché médica | D3 |
