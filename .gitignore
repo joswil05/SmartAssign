@@ -9,6 +9,11 @@ local.properties
 *.keystore
 *.jks
 
+# Datos reales del cliente — contienen PII (cédula, INSS, fecha de
+# nacimiento) de personal real. Nunca al control de versiones (§12.1).
+# Se lee del disco local para el importador (etapa E3), nunca se commitea.
+Base de Datos.xlsx
+
 # IDE
 .vs/
 .idea/
