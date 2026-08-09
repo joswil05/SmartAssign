@@ -16,8 +16,8 @@ Versión 1.0 · 2026-08-09
 | Capa | Elección | Motivo dominante |
 |---|---|---|
 | **Cliente** | Kotlin + Jetpack Compose | Anexo §1 · condiciones de uso §12.3 |
-| **Backend** | **ASP.NET Core 8 (C#)** | Ecosistema SQL Server · tiempo real nativo · TI ya formado |
-| **ORM** | **EF Core 8** + Dapper para lecturas calientes | Migraciones versionadas · consultas de panel sin sobrecoste |
+| **Backend** | **ASP.NET Core 10 (C#)** | Ecosistema SQL Server · tiempo real nativo · TI ya formado |
+| **ORM** | **EF Core 10** + Dapper para lecturas calientes | Migraciones versionadas · consultas de panel sin sobrecoste |
 | **Base de datos** | SQL Server 2019+ | Anexo §1 — decisión cerrada |
 | **Tiempo real** | **SignalR** sobre WebSocket | §2.1.5, C4 — sin infraestructura adicional |
 | **Caché local** | Room + SQLCipher | §12.1, §12.2, D3 |
@@ -78,7 +78,7 @@ El anexo no prescribe framework de servidor. La evaluación:
 | Tipado fuerte para reglas de seguridad | **Fuerte, con `record` y tipos no nulos** | TypeScript, borrado en ejecución | Fuerte |
 | Coste de licencia | Gratuito, multiplataforma | Gratuito | Gratuito |
 
-**Decisión: ASP.NET Core 8.**
+**Decisión: ASP.NET Core 10** — es la versión del SDK ya instalado en la máquina de desarrollo.
 
 > **El criterio que desempata no es técnico, es de continuidad.** El anexo justifica SQL Server porque *"licencias, respaldos, personal de TI ya familiarizado"*. Ese mismo argumento aplica al servidor: un equipo que opera SQL Server opera Windows Server, y probablemente .NET. Elegir Node o Java introduciría una segunda cadena de herramientas que ese equipo tendría que aprender **para mantener un sistema del que depende la seguridad ocupacional de 160 personas**.
 >
@@ -86,7 +86,7 @@ El anexo no prescribe framework de servidor. La evaluación:
 
 ## 1.4 ORM: EF Core con Dapper para lecturas
 
-**EF Core 8** para el modelo y las escrituras. **Dapper** para consultas de panel y colas.
+**EF Core 10** para el modelo y las escrituras. **Dapper** para consultas de panel y colas.
 
 | Uso | Herramienta | Motivo |
 |---|---|---|
@@ -116,7 +116,7 @@ El anexo no prescribe framework de servidor. La evaluación:
 | Escaneo | **ML Kit Barcode en modo QR, modelo en dispositivo** | §12.1, E1 |
 | Notificaciones | **FCM** (campana vacía) | D5 |
 | Trabajo en segundo plano | WorkManager para tareas puntuales | — |
-| `minSdk` | **26** (Android 8.0) | ⚠ `PENDIENTE-E4` |
+| `minSdk` / `targetSdk` | **26** / **36** | ⚠ `PENDIENTE-E4` · SDK 34/36 disponibles en la máquina |
 
 > **ML Kit en modo dispositivo, no en la nube.** El modelo empaquetado se ejecuta localmente y **no realiza ninguna llamada de red**: la imagen del gafete nunca sale del teléfono. La variante en la nube queda **prohibida** en este proyecto *(§12.1)*.
 >
