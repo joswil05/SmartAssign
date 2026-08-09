@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SmartAssign.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using SmartAssign.Infrastructure.Persistence;
 namespace SmartAssign.Infrastructure.Persistence.Migraciones
 {
     [DbContext(typeof(SmartAssignDbContext))]
-    partial class SmartAssignDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260809221008_AusenciasYAjusteCategoria")]
+    partial class AusenciasYAjusteCategoria
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -770,14 +773,6 @@ namespace SmartAssign.Infrastructure.Persistence.Migraciones
                         .HasColumnType("nvarchar(150)")
                         .HasColumnName("nombre_completo");
 
-                    b.Property<string>("OrigenDato")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
-                        .HasDefaultValue("real")
-                        .HasColumnName("origen_dato");
-
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
@@ -816,8 +811,6 @@ namespace SmartAssign.Infrastructure.Persistence.Migraciones
                     b.ToTable("Personal", null, t =>
                         {
                             t.HasCheckConstraint("CK_Personal_categoria", "categoria IN ('operario','operador_a','operador_b','operador_c','averiero','liderazgo')");
-
-                            t.HasCheckConstraint("CK_Personal_origen_dato", "origen_dato IN ('real','simulado','simulado_categoria')");
 
                             t.HasCheckConstraint("CK_Personal_situacion", "situacion IN ('fuera_de_turno','presente_sin_asignar','asignado','en_transito','en_bolson','retirado_temporal','ausente_justificado')");
                         });
@@ -1635,14 +1628,6 @@ namespace SmartAssign.Infrastructure.Persistence.Migraciones
                         .HasColumnType("nvarchar(400)")
                         .HasColumnName("observacion");
 
-                    b.Property<string>("OrigenDato")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
-                        .HasDefaultValue("simulado")
-                        .HasColumnName("origen_dato");
-
                     b.Property<int>("PersonalId")
                         .HasColumnType("int")
                         .HasColumnName("personal_id");
@@ -1670,8 +1655,6 @@ namespace SmartAssign.Infrastructure.Persistence.Migraciones
 
                     b.ToTable("RestriccionMedica", null, t =>
                         {
-                            t.HasCheckConstraint("CK_RM_origen_dato", "origen_dato IN ('real','simulado')");
-
                             t.HasCheckConstraint("CK_RM_vigencia", "fecha_fin IS NULL OR fecha_fin >= fecha_inicio");
                         });
                 });

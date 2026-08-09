@@ -1014,6 +1014,26 @@ Solo 18 filas, y la mayoría incompletas: 3 SKU de Línea 1 con 3 puestos cada u
 
 **Bloquea:** el cambio de SKU y el cálculo de cobertura con datos reales.
 
+## G5 · `categoria_titular` no se puede derivar de `PerfilRequerido` — 🔴 Abierta, no bloqueante
+
+Al construir el importador (etapa E3.6) apareció una segunda incompatibilidad entre el 04 original y el dato real, además de A13: `04 §2.6` exige que todo puesto **fijo** tenga `categoria_titular` (`operador_a`|`operador_c`|`averiero`), pero los 31 puestos fijos reales solo traen `PerfilRequerido`, con estos valores:
+
+| PerfilRequerido en puestos fijos | Filas |
+|---|---|
+| Operador | 19 |
+| Supervisor | 5 |
+| Averiero | 5 |
+| Genérico | 1 |
+| Operador de filtro | 1 |
+
+Ninguno de estos mapea limpio a `operador_a` / `operador_c` — "Operador" (19 filas) no dice si es A o C, y "Supervisor"/"Genérico"/"Operador de filtro" no tienen casilla en el vocabulario de tres valores. Inventar la asignación sería fabricar un dato de negocio sin respaldo (regla R2 de 07 §2).
+
+**Resolución para poder importar ya:** se relaja `CK_Puesto_categoria` — ya no exige `categoria_titular` en fijos, solo prohíbe que un rotativo lo tenga (eso sí se mantiene, C12). `categoria_titular` queda `NULL` en los 98 puestos reales importados hasta que el cliente confirme la categorización exacta de sus titulares. `PerfilRequerido` (real, importado tal cual) sigue disponible para lo que sí resuelve por sí solo — la matriz de compatibilidad del §4.2 en la etapa E4.
+
+**Bloquea (eventualmente):** `sp_BarridoPuestosFijos` (E5.5), que hoy en su diseño depende de conocer la categoría del titular para decidir a quién asignar automáticamente. No bloquea nada de lo construido hasta ahora.
+
+*Impacta:* 04 (`Puesto.categoria_titular`, `CK_Puesto_categoria`), 07 (importador).
+
 ---
 
 ## Resumen de estado
@@ -1026,9 +1046,9 @@ Solo 18 filas, y la mayoría incompletas: 3 SKU de Línea 1 con 3 puestos cada u
 | D · Seguridad | 7 | 1 | — |
 | E · Entorno | 4 | — | 3 |
 | F · Arquitectura y despliegue | 4 | — | — |
-| G · Huecos de los datos reales | 3 | — | 1 (G4, no bloqueante) |
-| **Total** | **59** | **2** | **4** |
+| G · Huecos de los datos reales | 3 | — | 2 (G4, G5 — ninguna bloqueante) |
+| **Total** | **59** | **2** | **5** |
 
-**La construcción arranca sin ningún bloqueo.** G1, G2 y G3 quedaron resueltas para poder construir y probar; G4 (puestos por SKU incompletos) se rellena con datos simulados sin necesitar respuesta. Quedan abiertas E3, E4, E7 (entorno, no bloquean) y A5b/A7-orig ya no aplican — fueron cerradas.
+**La construcción arranca sin ningún bloqueo.** G1, G2 y G3 quedaron resueltas para poder construir y probar; G4 (puestos por SKU incompletos) se rellena con datos simulados sin necesitar respuesta; G5 (categoría del titular de puestos fijos) se descubrió al importar y no bloquea nada, salvo el barrido automático más adelante (E5.5). Quedan abiertas E3, E4, E7 (entorno, no bloquean), G4 y G5, y A5b/A7-orig ya no aplican — fueron cerradas.
 
 > **En el camino crítico y fuera del software: imprimir los gafetes con QR, y conseguir la categorización real de A/B/C y los datos médicos antes del piloto.**

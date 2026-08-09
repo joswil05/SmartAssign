@@ -11,9 +11,16 @@ public class PuestoConfig : IEntityTypeConfiguration<Puesto>
         b.ToTable("Puesto", t =>
         {
             t.HasCheckConstraint("CK_Puesto_tipo", "tipo IN ('fijo','rotativo')");
+            // 00 §G5: el 04 original exigía categoria_titular NOT NULL en
+            // fijos, pero los 31 puestos fijos reales solo traen
+            // PerfilRequerido (Operador/Supervisor/Averiero/Genérico/
+            // Operador de filtro) — un vocabulario que NO mapea limpio a
+            // operador_a/operador_c/averiero. Exigirlo obligaría a
+            // inventar la categoría exacta del titular, que es justo lo
+            // que R2 prohíbe. Se conserva solo la mitad segura: un
+            // rotativo NUNCA declara categoria_titular (C12).
             t.HasCheckConstraint("CK_Puesto_categoria",
-                "(tipo = 'fijo' AND categoria_titular IS NOT NULL) OR " +
-                "(tipo = 'rotativo' AND categoria_titular IS NULL)");
+                "tipo = 'fijo' OR categoria_titular IS NULL");
             // A14: umbral_critico (en horas, igual que horas_en_puesto) solo
             // puede rechazarse si ambos están presentes y no es mayor que el
             // sugerido — nulo en cualquiera de los dos no bloquea nada.

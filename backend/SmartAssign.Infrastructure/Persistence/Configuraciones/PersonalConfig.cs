@@ -15,6 +15,7 @@ public class PersonalConfig : IEntityTypeConfiguration<Personal>
             t.HasCheckConstraint("CK_Personal_situacion",
                 "situacion IN ('fuera_de_turno','presente_sin_asignar','asignado','en_transito'," +
                 "'en_bolson','retirado_temporal','ausente_justificado')");
+            t.HasCheckConstraint("CK_Personal_origen_dato", "origen_dato IN ('real','simulado','simulado_categoria')");
         });
 
         b.HasKey(x => x.Id);
@@ -27,6 +28,7 @@ public class PersonalConfig : IEntityTypeConfiguration<Personal>
         b.Property(x => x.Situacion).HasColumnName("situacion").HasMaxLength(25).HasDefaultValue("fuera_de_turno");
         b.Property(x => x.DobleTurno).HasColumnName("doble_turno").HasDefaultValue(false);
         b.Property(x => x.Activo).HasColumnName("activo").HasDefaultValue(true);
+        b.Property(x => x.OrigenDato).HasColumnName("origen_dato").HasMaxLength(20).HasDefaultValue("real");
         b.Property(x => x.RowVersion).HasColumnName("row_version").IsRowVersion();
 
         b.HasOne(x => x.LineaHabitualNav).WithMany().HasForeignKey(x => x.LineaHabitual).OnDelete(DeleteBehavior.Restrict);

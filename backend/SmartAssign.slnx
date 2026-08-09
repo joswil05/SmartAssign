@@ -9,4 +9,7 @@
   <Project Path="SmartAssign.Application/SmartAssign.Application.csproj" />
   <Project Path="SmartAssign.Domain/SmartAssign.Domain.csproj" />
   <Project Path="SmartAssign.Infrastructure/SmartAssign.Infrastructure.csproj" />
+  <Folder Name="/herramientas/">
+    <Project Path="herramientas/ImportadorCli/ImportadorCli.csproj" />
+  </Folder>
 </Solution>

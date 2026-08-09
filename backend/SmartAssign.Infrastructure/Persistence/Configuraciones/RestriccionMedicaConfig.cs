@@ -8,7 +8,11 @@ public class RestriccionMedicaConfig : IEntityTypeConfiguration<RestriccionMedic
 {
     public void Configure(EntityTypeBuilder<RestriccionMedica> b)
     {
-        b.ToTable("RestriccionMedica", t => t.HasCheckConstraint("CK_RM_vigencia", "fecha_fin IS NULL OR fecha_fin >= fecha_inicio"));
+        b.ToTable("RestriccionMedica", t =>
+        {
+            t.HasCheckConstraint("CK_RM_vigencia", "fecha_fin IS NULL OR fecha_fin >= fecha_inicio");
+            t.HasCheckConstraint("CK_RM_origen_dato", "origen_dato IN ('real','simulado')");
+        });
 
         b.HasKey(x => x.Id);
         b.Property(x => x.PersonalId).HasColumnName("personal_id");
@@ -20,6 +24,7 @@ public class RestriccionMedicaConfig : IEntityTypeConfiguration<RestriccionMedic
         b.Property(x => x.Observacion).HasColumnName("observacion").HasMaxLength(400);
         b.Property(x => x.RegistradoPor).HasColumnName("registrado_por");
         b.Property(x => x.RegistradoEn).HasColumnName("registrado_en").HasDefaultValueSql("SYSUTCDATETIME()");
+        b.Property(x => x.OrigenDato).HasColumnName("origen_dato").HasMaxLength(20).HasDefaultValue("simulado");
 
         b.HasOne(x => x.Personal).WithMany().HasForeignKey(x => x.PersonalId).OnDelete(DeleteBehavior.Restrict);
         b.HasOne(x => x.Capacidad).WithMany().HasForeignKey(x => x.CapacidadId).OnDelete(DeleteBehavior.Restrict);

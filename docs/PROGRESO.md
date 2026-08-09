@@ -1,7 +1,7 @@
 # SmartAssign — Estado de ejecución
 
 **Se lee al empezar cada sesión. Se actualiza al terminar cada UT.**
-Última actualización: 2026-08-09 · UTs completadas: **19 / 95**
+Última actualización: 2026-08-09 · UTs completadas: **21 / 95**
 
 ## Decisiones de esta sesión que no estaban en los documentos
 
@@ -77,7 +77,7 @@
 
 > **→ PC-1** · Validación humana: dos supervisores en dos teléfonos, ninguno ve la línea del otro. **Listo para validar** — requiere H2 (teléfonos físicos) y la app real (E6); por ahora demostrado por API + pruebas automatizadas.
 
-## E3 · Personal y puestos *(4/6)* → F2
+## E3 · Personal y puestos *(6/6)* ✅ → F2
 
 - [x] **E3.1** `Puesto` con umbrales propios nulables y `titular_id` de doble semántica
   - VERIFICADO: `CK_Puesto_umbrales` rechaza crítico=sugerido y crítico<sugerido (`PersonalYPuestosTests`), acepta crítico>sugerido y nulos. **Cambio de diseño respecto al 04 original:** el umbral crítico se guarda en horas (`umbral_critico_horas`), no minutos, para poder compararse contra `horas_en_puesto` sin conversión — ver nota de ingeniería abajo
@@ -87,12 +87,10 @@
   - VERIFICADO: `Personal_se_guarda_con_sexo_nulo_sin_error`. **Cambio de diseño respecto al 04 original:** el campo `perfil` (genérico) se sustituye por `sexo` — A13 (cerrada antes de esta sesión, no reflejada aún en 04) confirma que la regla blanda del §7.3 es la comparación de sexo contra `Puesto.sexo_preferente`. 04_ESQUEMA_BACKEND.md actualizado
 - [x] **E3.4** `RestriccionMedica` con vigencia y sin borrado
   - VERIFICADO: `DENY_impide_borrar_una_restriccion_medica_con_la_cuenta_de_aplicacion` — impersonando un usuario real `rol_app` (`WITHOUT LOGIN`, creado en esta etapa) vía `EXECUTE AS`, con `GRANT SELECT/INSERT/UPDATE` explícito para aislar que lo único denegado es `DELETE`. Mensaje de SQL Server confirmado literalmente
-- [ ] **E3.5** **Semilla simulada adversaria** — los 16 escenarios
-  - LEE: `07 §4.1`, `07 §4.2`
-  - VERIFICA: una prueba por escenario confirma que existe en la semilla
-- [ ] **E3.6** Importador de datos reales con rechazo por lote
-  - LEE: `07 §4.3`, `04 §3`
-  - VERIFICA: fila inválida → se rechaza el lote entero, con informe
+- [x] **E3.5** **Semilla simulada adversaria** — los 16 escenarios
+  - VERIFICADO: `SembradorAdversario` (Infrastructure) + `herramientas/ImportadorCli sembrar-adversaria` + `SemillaAdversariaTests` — 20 pruebas (16 escenarios, uno de ellos `[Theory]` por línea, más la prueba de separación de origen). Corrido de verdad contra `SmartAssignDev` tras el import real — ver el listado completo de los 16 en la nota de ingeniería abajo
+- [x] **E3.6** Importador de datos reales con rechazo por lote
+  - VERIFICADO: `ImportadorDatosRealesTests` (9 pruebas con libros sintéticos) + ejecución real contra `Base de Datos.xlsx` vía `herramientas/ImportadorCli importar`: **Personal 164/164 OK**, **Personal ausente 12/12 OK**, **Puestos Fijos rechazado — 9 filas con `SexoPreferente` contaminado**, exactamente como predice 00 §A13. El informe de rechazo es real, no simulado — ver hallazgo abajo
 
 ### Decisiones de ingeniería de la etapa E3 (delegadas, no de negocio — R2 no aplica)
 
@@ -102,6 +100,33 @@
 - **Extensión de G1:** `OPERADOR DE CALDERAS` y `OPERARIO DE FILTROS Y TANQUERIA` (4 personas) no estaban en el resumen original de G1 — solo aparecen leyendo la hoja completa. Mapeadas a Operador A por la misma lógica que `OPERADOR DE EQUIPOS` (equipo específico, no tarea general), marcado igual de explícito como inferencia propia pendiente de confirmación. Ver `00_DECISIONES.md §G1` actualizado.
 - **`rol_app` creado como `USER ... WITHOUT LOGIN`.** Necesario para que el DENY de RestriccionMedica (04 §7.5) sea probable de verdad — sin un principal separado de `dbo`, cualquier prueba de DENY sería un placebo, porque `db_owner` no queda sujeto a un DENY de esta forma. Qué login de servidor se mapea a este rol en cada entorno es una decisión de despliegue (F-block), no de esta migración.
 - **El resto del DENY de 04 §7.5** (Asignacion, Movimiento, Auditoria) queda para **E4.7**, tal como decía el plan original — no se adelantó porque esas tablas todavía no tienen flujo de escritura real que proteger.
+- **`00_DECISIONES.md §G5` (nueva, abierta, no bloqueante):** los 31 puestos fijos reales solo traen `PerfilRequerido` (Operador/Supervisor/Averiero/Genérico/Operador de filtro), que no mapea limpio a `categoria_titular` (`operador_a`/`operador_c`/`averiero`, 04 §2.6 original). Se relaja `CK_Puesto_categoria` — ya no exige el valor en fijos — en vez de inventar la categoría del titular. Bloquea eventualmente `sp_BarridoPuestosFijos` (E5.5), no la construcción de ahora.
+- **Hallazgo real, no de diseño:** al correr el importador contra el archivo real, **Puestos Fijos se rechazó — 9 de 98 filas tienen `SexoPreferente` contaminado con valores de `PerfilRequerido`** (`Femenina` ×1, `Supervisor` ×1, `Operador` ×4, `Averiero` ×1, `Estibador` ×2), tal como A13 ya advertía que podía pasar. **Ninguna fila de Puesto quedó en la base** — el lote se rechazó completo, con el informe fila por fila. Personal (164/164) y Personal ausente (12/12) sí importaron limpio. **Acción pendiente del lado del cliente:** limpiar esas 9 celdas del Excel (o decirme qué poner ahí) para poder importar los 98 puestos reales.
+- **`Personal.OrigenDato` / `RestriccionMedica.OrigenDato` — columnas nuevas.** 07 §4.4 exige que "las filas simuladas lleven marca de origen" y que haya una prueba que falle si una llega a producción; no existía dónde guardar esa marca. Valores: `real` (default), `simulado` (persona/restricción inventada solo para probar el mecanismo), `simulado_categoria` (persona **real** del padrón cuya categoría se sobrescribió solo en esta semilla — la re-etiqueta de Operador B/C que pide G1).
+- **`Base de Datos.xlsx` salió del control de versiones.** Traía PII real (cédula, INSS, fecha de nacimiento) y había quedado commiteado sin querer en una sesión anterior (`4b7b7e7`). Se agregó a `.gitignore` y se hizo `git rm --cached`; sigue en disco para que el importador lo siga usando. El archivo permanece en el historial de git de este repo local — si algún día se comparte o sube a un remoto, ese commit necesita limpiarse aparte (no basta con esto).
+- **`herramientas/ImportadorCli`** — herramienta de línea de comandos nueva, con dos subcomandos (`importar`, `sembrar-adversaria`), nunca invocada desde la Api ni desde una migración. Fija el contexto de sesión como coordinador a mano (la Api real lo hace vía `ContextoSesionMiddleware`, etapa E2) porque estas herramientas no pasan por el pipeline HTTP.
+- **Descubrimiento durante las pruebas: la RLS de `Puesto` (etapa E2) también protege las lecturas del propio importador.** Sin contexto de coordinador, el importador no vería sus propias filas al reimportar y produciría un `INSERT` duplicado en vez de una actualización. Se corrigió fijando el contexto antes de cualquier operación — tanto en la herramienta real como en las pruebas (`ComoCoordinadorAsync`).
+
+**Los 16 escenarios de la semilla adversaria (07 §4.4), con su origen:**
+
+| # | Escenario | Decisión |
+|---|---|---|
+| 1 | Restricción médica vigente que choca con el puesto | §7.2, C14 |
+| 2 | Restricción caducada ayer → no bloquea | C14 |
+| 3 | Restricción permanente (`fecha_fin` NULL) | C14 |
+| 4 | Restricción que empieza mañana → no vigente todavía | C14 |
+| 5 | Puesto con fatiga "sugerida" propia (`horas_en_puesto`) | A4, A14 |
+| 6 | `umbral_critico_horas` válido, mayor que el sugerido | A4, A14 |
+| 7 | "Girar botellas" con 24 h de recuperación | A12 |
+| 8 | "Limpieza" con 48 h de recuperación | A12 |
+| 9 | Sexo de la persona distinto al preferente del puesto (regla blanda) | A13, §7.3 |
+| 10 | Sexo NULL → la regla no se evalúa | A13, §7.3 |
+| 11 | Al menos un Operador B por línea activa (L1/L2/L4/L8) | G1 |
+| 12 | Al menos un Operador C | G1 |
+| 13 | L6 deliberadamente sin ningún Operador B → déficit | G1, prepara C15 |
+| 14 | Titular ausente en L1 **con** Operador B disponible en su línea | C1 |
+| 15 | Titular ausente en L6 **sin** Operador B en su línea | C1 |
+| 16 | L2 exactamente en su piso mínimo; L4 una persona por encima | B5 |
 
 ## E4 · Motor de validación *(0/8)* → F3 · `[BLOQUEANTE]`
 
@@ -248,6 +273,7 @@
 | **H4** | Gafetes impresos con QR | Pruebas de campo desde E6 |
 | **H6** | Vocabulario real de capacidades físicas | Producción, no construcción |
 | **H2** | Teléfonos físicos | PC-1 en adelante |
+| **H8** | Limpiar `SexoPreferente` en 9 filas de "Puestos Fijos" (o decirme el valor real) — detalle en `00_DECISIONES.md §A13` y la nota de esta sesión | Importar los 98 puestos reales; no bloquea E4/E5 (hay puestos simulados para probar) |
 
 ## Registro de sesiones
 
@@ -255,4 +281,5 @@
 |---|---|---|
 | 2026-08-09 | E0 (3) + E1 (6) | Esqueletos backend/Android, migración base, semilla estructural con corrección A1 verificada |
 | 2026-08-09 | E2 (6) | Identidad y aislamiento en tres capas (JWT sin `linea_id`, filtro de alcance, RLS). 32/32 pruebas en verde. Deuda documentada: bloqueo automático por reintentos sin umbral (falta `Parametro`), RLS de `JornadaLinea` diferido a E5 |
-| 2026-08-09 | E3.1–E3.4 (4) | `Personal`, extensión de `Puesto` (titular, umbrales en horas, `PerfilRequerido`), `PuestoCapacidad`, `RestriccionMedica` con `DENY DELETE` real vía `rol_app`. 38/38 pruebas en verde. Corrige 04 en dos puntos que A13/A14 ya habían cerrado pero el documento no reflejaba (`Personal.Sexo`, `Puesto.PerfilRequerido`). Extiende G1 con 4 personas no cubiertas por el resumen original. **E3.5/E3.6 pendientes** — semilla adversaria e importador real, quedan para la siguiente sesión de construcción |
+| 2026-08-09 | E3.1–E3.4 (4) | `Personal`, extensión de `Puesto` (titular, umbrales en horas, `PerfilRequerido`), `PuestoCapacidad`, `RestriccionMedica` con `DENY DELETE` real vía `rol_app`. 38/38 pruebas en verde. Corrige 04 en dos puntos que A13/A14 ya habían cerrado pero el documento no reflejaba (`Personal.Sexo`, `Puesto.PerfilRequerido`). Extiende G1 con 4 personas no cubiertas por el resumen original. |
+| 2026-08-09 | E3.5–E3.6 (2) | **E3 completa.** Importador real ejecutado contra `Base de Datos.xlsx`: Personal 164/164 y Ausencias 12/12 cargados; Puestos Fijos rechazado por 9 filas con dato contaminado (00 §A13, confirmado con datos reales, no solo predicho) — nuevo bloqueo H8, no crítico. Semilla adversaria de los 16 escenarios (07 §4.4) construida y corrida contra `SmartAssignDev`. Nueva decisión G5 (categoría de titular de puesto fijo no derivable). `Base de Datos.xlsx` sacado del control de versiones (traía PII real). 67/67 pruebas en verde en todo el backend |

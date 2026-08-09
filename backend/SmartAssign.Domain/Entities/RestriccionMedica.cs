@@ -31,6 +31,16 @@ public class RestriccionMedica
     public int RegistradoPor { get; set; }
     public DateTime RegistradoEn { get; set; }
 
+    /// <summary>
+    /// real | simulado (00 §G2, 07 §4.4): hoy el sistema no tiene ninguna
+    /// restricción médica real todavía — "cero datos médicos reales hasta
+    /// que el cliente los aporte". Toda fila actual debe ser 'simulado';
+    /// el valor existe para que, cuando el cliente entregue el dato real,
+    /// haya una marca que distinga uno de otro (y una prueba que falle si
+    /// una fila simulada llega a producción).
+    /// </summary>
+    public string OrigenDato { get; set; } = "simulado";
+
     public Personal Personal { get; set; } = default!;
     public CapacidadFisica Capacidad { get; set; } = default!;
 }

@@ -50,6 +50,16 @@ public class Personal
     /// <summary>Baja/reactivación (§2.1.6). No se borra a nadie del padrón.</summary>
     public bool Activo { get; set; } = true;
 
+    /// <summary>
+    /// real | simulado | simulado_categoria (07 §4.4, 00 §G1/§G2): "las
+    /// filas simuladas llevan marca de origen y hay una prueba que falla
+    /// si aparece una sola en la base de producción". `simulado_categoria`
+    /// es una persona real cuya categoría se sobrescribió solo en la
+    /// semilla de desarrollo (subconjunto de operario re-etiquetado a B/C,
+    /// §G1) — sigue siendo la misma persona del padrón, no una inventada.
+    /// </summary>
+    public string OrigenDato { get; set; } = "real";
+
     public byte[] RowVersion { get; set; } = default!;
 
     public Linea? LineaHabitualNav { get; set; }

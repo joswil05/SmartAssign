@@ -34,6 +34,7 @@ public class SmartAssignDbContext : DbContext
     public DbSet<Personal> Personas => Set<Personal>();
     public DbSet<PuestoCapacidad> PuestosCapacidad => Set<PuestoCapacidad>();
     public DbSet<RestriccionMedica> RestriccionesMedicas => Set<RestriccionMedica>();
+    public DbSet<AusenciaJustificada> AusenciasJustificadas => Set<AusenciaJustificada>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
