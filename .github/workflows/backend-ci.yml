@@ -1,0 +1,79 @@
+# CI del backend — docs/06_ROADMAP.md §4.3 y docs/07_PLAN_DE_EJECUCION.md UT-E1.6.
+#
+# Puerta 2 del roadmap: build + pruebas (incluida la suite de reglas de
+# seguridad, bloqueante) + arquitectura + escaneo de secretos + dependencias
+# vulnerables. Ningún paso aquí es opcional para hacer merge.
+name: Backend CI
+
+on:
+  push:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+
+jobs:
+  build-y-pruebas:
+    runs-on: windows-latest
+    env:
+      ASPNETCORE_ENVIRONMENT: Development
+
+    services: {} # SQL Server LocalDB viene preinstalado en windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restaurar
+        run: dotnet restore
+        working-directory: backend
+
+      - name: Compilar
+        run: dotnet build --no-restore --configuration Release
+        working-directory: backend
+
+      # Escaneo de dependencias vulnerables — no bloquea todavía (NU1903
+      # sobre Microsoft.OpenApi es una dependencia transitiva del propio
+      # framework sin versión parcheada disponible aún, rastreada, no
+      # introducida por código de este proyecto). Si aparecen NUEVOS
+      # avisos de alta severidad, sí debe fallar.
+      - name: Auditoría de dependencias
+        run: dotnet list package --vulnerable --include-transitive
+        working-directory: backend
+        continue-on-error: true
+
+      - name: Pruebas de arquitectura
+        run: dotnet test tests/Arquitectura.Tests --no-build --configuration Release
+        working-directory: backend
+
+      - name: Pruebas unitarias de dominio
+        run: dotnet test tests/Domain.UnitTests --no-build --configuration Release
+        working-directory: backend
+
+      # BLOQUEANTE — 05_TRD.md §6.2. Un fallo aquí impide el merge, no
+      # solo el despliegue: no se pospone hasta el final del proyecto.
+      - name: Suite de reglas de seguridad
+        run: dotnet test tests/Reglas.SeguridadTests --no-build --configuration Release
+        working-directory: backend
+
+      - name: Pruebas de integración de la API
+        run: dotnet test tests/Api.IntegrationTests --no-build --configuration Release
+        working-directory: backend
+
+  secretos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Buscar secretos en el historial y el árbol de trabajo
+        uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --only-verified

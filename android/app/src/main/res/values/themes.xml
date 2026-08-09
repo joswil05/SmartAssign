@@ -1,0 +1,8 @@
+<resources>
+    <!-- El tema visual real (tokens, tipografía, contraste AAA) vive en Compose
+         — ver docs/03_UIUX_BRIEF.md §2. Esto es solo el arranque del sistema. -->
+    <style name="Theme.SmartAssign" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">#0E1116</item>
+        <item name="android:windowBackground">#0E1116</item>
+    </style>
+</resources>

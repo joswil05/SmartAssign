@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/tests/">
+    <Project Path="tests/Api.IntegrationTests/Api.IntegrationTests.csproj" />
+    <Project Path="tests/Arquitectura.Tests/Arquitectura.Tests.csproj" />
+    <Project Path="tests/Domain.UnitTests/Domain.UnitTests.csproj" />
+    <Project Path="tests/Reglas.SeguridadTests/Reglas.SeguridadTests.csproj" />
+  </Folder>
+  <Project Path="SmartAssign.Api/SmartAssign.Api.csproj" />
+  <Project Path="SmartAssign.Application/SmartAssign.Application.csproj" />
+  <Project Path="SmartAssign.Domain/SmartAssign.Domain.csproj" />
+  <Project Path="SmartAssign.Infrastructure/SmartAssign.Infrastructure.csproj" />
+</Solution>

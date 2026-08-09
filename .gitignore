@@ -23,3 +23,22 @@ appsettings.*.local.json
 # SO
 Thumbs.db
 .DS_Store
+
+# Skill externo vendorizado - no versionar su .git interno
+.claude/skills/*/.git/
+
+# Android build
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/captures/
+android/.idea/
+android/*.iml
+
+# Backend build
+backend/**/bin/
+backend/**/obj/
+backend/**/*.user
+
+# Descargas locales usadas para bootstrap (no versionar el zip de Gradle)

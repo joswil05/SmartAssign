@@ -244,6 +244,22 @@ Encaja exactamente con la regla blanda de §7.3: el puesto declara una preferenc
 
 *Impacta:* 04, 05, 07 (limpieza en la importación).
 
+## A14 · Cómo se traducen TiempoEnPuesto y TiempoDeRecup al modelo de fatiga — 🔵 Cerrada — decisión técnica documentada
+
+Al implementar A12 apareció una precisión que ninguna fuente resolvía: el modelo original tenía **dos** umbrales por puesto (`sugerido` y `crítico`, §9.1), pero el Excel real solo trae **un** valor de fatiga por puesto (`TiempoEnPuesto`).
+
+**Resolución, sin inventar el número que falta:**
+
+| Campo del Excel | Campo del esquema | Semántica |
+|---|---|---|
+| `TiempoEnPuesto` | `Puesto.horas_en_puesto` | Puebla el umbral de fatiga **sugerida** — es un dato real |
+| *(no existe en el Excel)* | `Puesto.umbral_critico_min` | **Sigue nulable, con default de planta**, exactamente como A4 ya lo había previsto. No se inventa un segundo umbral: se deja configurable hasta que el cliente lo defina |
+| `TiempoDeRecup` | `Puesto.horas_recuperacion` | Generaliza la regla de 24 h (A12) |
+
+**Y sobre la granularidad de la regla de recuperación (B6):** el Excel confirma que es **por tipo de actividad**, no por puesto exacto — las tres filas "Girar botellas 1/2/3" son puestos físicos distintos con el mismo `TipoActividad`, y las tres comparten `TiempoDeRecup = 24`. `TipoActividad` se conserva en el esquema exclusivamente como agrupador para esta comparación (ya no lleva ninguna bandera booleana, que A12 eliminó); el tiempo de recuperación en sí vive en `Puesto`, no en `TipoActividad`, porque el dato llega por puesto en el archivo real.
+
+*Impacta:* 04 (`Puesto.horas_en_puesto`, `TipoActividad` sin bandera).
+
 ## A9b · Vigencia del anexo de arquitectura — 🟡 Supuesto declarado
 
 El anexo se declara complementario a la v3.0 y la especificación vigente es la v3.3. **Se procede asumiendo que sigue vigente**: solo prescribe plataforma (Android nativo, SQL Server, API intermedia obligatoria) y nada de eso fue tocado entre v3.0 y v3.3.
@@ -933,45 +949,48 @@ Infraestructura nueva total: un servicio en un servidor.
 
 El archivo del cliente resuelve mucho *(A12, A13)* pero deja cuatro cosas sin las que ciertos motores no pueden funcionar.
 
-## G1 · No existe la distinción Operador A / B / C — 🔴 **Abierta · la más importante**
+## G1 · Distinción Operador A / B / C — 🟢 Cerrada — cliente
 
-Las categorías reales del padrón son:
+Las categorías reales del padrón no distinguen A/B/C:
 
-| Categoría real | Personas activas |
-|---|---|
-| OPERARIO | 120 |
-| **OPERADOR DE EQUIPOS** | **22** |
-| SUPERVISOR DE LINEA | 6 |
-| AUXILIAR DE CONTROL DE MATERIALES | 4 |
-| OPERARIO DE CONTROL DE AVERIAS | 3 |
-| OPERADOR DE CALDERAS | 2 |
-| OPERARIO DE FILTROS Y TANQUERIA | 2 |
-| Jefatura, coordinación y análisis | 5 |
+| Categoría real | Personas activas | Mapeo |
+|---|---|---|
+| **OPERADOR DE EQUIPOS** | **22** | → **Operador A** (asunción propia, ver nota) |
+| OPERARIO | 120 | → **Operario**, salvo el subconjunto simulado de abajo |
+| OPERARIO DE CONTROL DE AVERIAS | 3 | → **Averiero** |
+| SUPERVISOR DE LINEA, jefatura, análisis, auxiliar de materiales | 18 | → **Liderazgo** |
 
-**No hay ninguna marca que distinga A, B o C.** Los 22 operadores de equipos son una sola categoría indiferenciada.
+> **Mapeo de `OPERADOR DE EQUIPOS` → Operador A: es una inferencia mía, no un dato confirmado por el cliente.** Se apoya en que la especificación describe al Operador A como "anclado automáticamente a su máquina crítica" — que es exactamente el perfil de alguien catalogado como *operador de equipos* y no como *operario* de tarea general. Queda marcada como asunción para revisar cuando lleguen los datos reales de categorización.
 
-> **Por qué bloquea:** el arranque de turno depende de que, cuando falta el titular de una máquina, el sistema encuentre **un Operador B** para suplirlo. Sin la distinción, no hay a quién buscar. Y el Operador B es, según la especificación, "el recurso más disputado de la planta" — toda la jerarquía de prioridad existe para repartirlo bien.
+**Resolución del cliente para poder construir y probar ya:**
 
-**Bloquea:** el barrido automático de puestos fijos y la cobertura de vacante crítica.
+> *"Asumo que la tabla sí tiene errores. Los operadores B y operadores C sácalos de los operarios — para las pruebas, aunque no sea realmente así."*
 
-## G2 · No hay ni un solo dato médico en el archivo — 🔴 Abierta
+- Un subconjunto de personas de la categoría **OPERARIO** se **re-etiqueta como Operador B u Operador C únicamente en la semilla de desarrollo**, para poder ejercer la lógica del suplente en el barrido (§8.3) y del entrenamiento (Operador C).
+- **Marcado explícitamente como simulado** — `origen_dato = 'simulado_categoria'` — y excluido de cualquier importación a producción.
+- El subconjunto se elige a propósito para que dispare los escenarios de la semilla adversaria: al menos un Operador B disponible por línea, y al menos una línea con déficit de B para forzar vacante crítica.
 
-Búsqueda exhaustiva sobre las 8 hojas: **cero coincidencias** con restricción, médico, lesión, limitación, embarazo, carga, apto o similares.
+**Consecuencia para producción, no para la construcción:** hasta que el cliente aporte la categorización real de A/B/C, en producción el sistema tendrá **cero Operadores B**, y el barrido siempre caerá en vacante crítica al faltar un titular. Es un comportamiento correcto del sistema ante datos incompletos, no un defecto — pero conviene saberlo antes del piloto.
 
-> **Por qué importa:** es la única regla del sistema que nunca cede, y la razón por la que la especificación insiste en mostrarla antes de consolidar cada registro. El mecanismo se puede construir sin los datos —y se construirá—, pero **no se puede poner en producción sin ellos**: protegería a nadie.
+*Impacta:* 04, 07 (importador y semilla).
 
-**Bloquea:** producción, no construcción.
+## G2 · Datos médicos — 🟢 Cerrada — cliente
 
-## G3 · La estructura real es de 7 líneas con puestos, no 10 — 🔴 Abierta
+> *"Los datos médicos debes simularlo por ahora."*
 
-- **Puestos definidos:** L01 a L07 — 98 puestos. L01 tiene 29; L07 solo 4.
-- **Personal asignado a:** Línea 1, 2, 4, 6 y 8, más **MAQUILA, PET, 1605 y 1606**.
-- **Programa de producción:** solo Línea 1, 2 y 4.
-- Las hojas `Lineas`, `Equipos` y `Operadores` están **vacías**.
+Confirma el plan ya trazado: mecanismo completo construido y probado con la semilla adversaria de [07 §4.4](07_PLAN_DE_EJECUCION.md); **cero datos médicos reales hasta que el cliente los aporte**, y ninguna fila simulada llega a producción.
 
-La especificación describe 10 líneas con la L8 como Bolsón. Los datos no lo contradicen necesariamente —pueden estar incompletos— pero no lo confirman, y aparecen cuatro destinos que la especificación no menciona.
+## G3 · Las 10 líneas del modelo se mantienen — 🟢 Cerrada — cliente
 
-**Bloquea:** la carga de datos reales, no la construcción.
+> *"Las líneas que no están en el Excel son a futuro, o están físicamente todavía. Cuenta con las líneas 1, 2, 4, 6 y 8 — líneas con personal real. No es que las vas a sacar del algoritmo, además recuerda que el Coordinador tiene la función de activar o desactivar alguna línea."*
+
+**No cambia nada del modelo de las 10 líneas.** Es exactamente el mecanismo que la especificación ya preveía: una línea sin SKU planificado queda *inactiva* y sus puestos pasan a *fuera de operación* (§8.1) — el Coordinador decide qué líneas operan cada día, y hoy operan cinco.
+
+- **Con datos y personal real ahora:** L1, L2, L4, L6, L8.
+- **En el modelo, sin datos todavía:** L3, L5, L7, L9, L10 — existen en la estructura, quedan *inactivas* hasta que haya SKU y personal que planificar en ellas.
+- **`MAQUILA`, `PET`, `1605`, `1606`** de la columna `Asignación Presupuesto` **no son de las 10 líneas de producción**: son otros centros de coste. El importador los deja fuera de `linea_habitual` — esas personas se cargan sin línea asignada, no se inventa una línea para ellas.
+
+*Impacta:* 07 (ya no bloquea nada; se retira de la lista de huecos activos).
 
 ## G4 · La tabla de puestos por SKU está casi vacía — 🔴 Abierta
 
@@ -993,9 +1012,9 @@ Solo 18 filas, y la mayoría incompletas: 3 SKU de Línea 1 con 3 puestos cada u
 | D · Seguridad | 7 | 1 | — |
 | E · Entorno | 4 | — | 3 |
 | F · Arquitectura y despliegue | 4 | — | — |
-| **G · Huecos de los datos reales** | — | — | **4** |
-| **Total** | **56** | **2** | **7** |
+| G · Huecos de los datos reales | 3 | — | 1 (G4, no bloqueante) |
+| **Total** | **59** | **2** | **4** |
 
-**La construcción arranca sin bloqueos.** De las siete abiertas, solo **G1** detiene una etapa concreta (el arranque de turno); las demás bloquean la puesta en producción, no el desarrollo.
+**La construcción arranca sin ningún bloqueo.** G1, G2 y G3 quedaron resueltas para poder construir y probar; G4 (puestos por SKU incompletos) se rellena con datos simulados sin necesitar respuesta. Quedan abiertas E3, E4, E7 (entorno, no bloquean) y A5b/A7-orig ya no aplican — fueron cerradas.
 
-> **En el camino crítico y fuera del software: imprimir los gafetes con QR, y conseguir los datos médicos.**
+> **En el camino crítico y fuera del software: imprimir los gafetes con QR, y conseguir la categorización real de A/B/C y los datos médicos antes del piloto.**

@@ -1,7 +1,17 @@
 # SmartAssign — Estado de ejecución
 
 **Se lee al empezar cada sesión. Se actualiza al terminar cada UT.**
-Última actualización: 2026-08-09 · UTs completadas: **0 / 95**
+Última actualización: 2026-08-09 · UTs completadas: **9 / 95**
+
+## Decisiones de esta sesión que no estaban en los documentos
+
+- **G1** cerrada: Operador A/B/C se simula tomando un subconjunto de OPERARIO (decisión del cliente); `OPERADOR DE EQUIPOS` → Operador A es **asunción propia**, revisar cuando lleguen datos reales de categorización.
+- **G2** cerrada: datos médicos simulados por ahora (decisión del cliente).
+- **G3** cerrada: las 10 líneas se mantienen en el modelo; L1/L2/L4/L6/L8 tienen datos reales hoy, el resto queda *inactiva* hasta que el Coordinador las planifique. `MAQUILA/PET/1605/1606` no son de las 10 líneas — quedan fuera de `linea_habitual` en el importador.
+- **A14** nueva: `TiempoEnPuesto` del Excel puebla `umbral_sugerido` (renombrado `horas_en_puesto`); `umbral_critico` sigue nulable con default de planta, tal como A4 ya preveía — no hay un segundo dato real para él. Ver [00_DECISIONES.md §A14](00_DECISIONES.md).
+- Skill externo `ui-ux-pro-max` vendorizado en `.claude/skills/ui-ux-pro-max-skill/` (no instalado como plugin — se invoca su script `search.py` directamente por ruta cuando llegue la etapa E6).
+- **Backend apunta a .NET 10 / EF Core 10** (versión realmente instalada), no .NET 8 como decía el TRD original.
+- Vulnerabilidad `NU1903` en `Microsoft.OpenApi` (dependencia transitiva del template `webapi` de .NET 10): actualizada a 2.3.0 (la más reciente disponible), sigue marcada por el feed de asesorías sin versión parcheada todavía. Rastreada en el CI como `continue-on-error`, no ignorada.
 
 > **Protocolo de sesión:**
 > 1. Leer este fichero → identificar la siguiente UT sin marcar.
@@ -14,38 +24,31 @@
 
 ---
 
-## E0 · Entorno *(0/3)*
+## E0 · Entorno *(3/3)* ✅
 
-- [ ] **E0.1** Fijar `JAVA_HOME` al JBR de Android Studio; comprobar Gradle y LocalDB
-  - LEE: `07 §3`
-  - VERIFICA: `gradle -v` responde · `sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "SELECT 1"` devuelve 1
-- [ ] **E0.2** Esqueleto de solución backend
-  - LEE: `05 §5`, `05 §4.1`
-  - VERIFICA: `dotnet build` sin errores · `dotnet test` corre (0 pruebas)
-- [ ] **E0.3** Esqueleto Android + CI local
-  - LEE: `05 §4.2`, `05 §1.5`
-  - VERIFICA: `gradlew assembleDebug` genera APK
+- [x] **E0.1** Fijar `JAVA_HOME` al JBR de Android Studio; comprobar Gradle y LocalDB
+  - VERIFICADO: JDK 21 (JBR) responde · LocalDB `MSSQLLocalDB` responde con SQL Server 2025
+- [x] **E0.2** Esqueleto de solución backend
+  - VERIFICADO: `backend/SmartAssign.sln` con Domain/Application/Infrastructure/Api + 4 proyectos de prueba, referencias de Clean Architecture cableadas, `dotnet build` → 0 errores
+- [x] **E0.3** Esqueleto Android + CI local
+  - VERIFICADO: proyecto Compose (Kotlin, AGP 8.7.2, Compose BOM 2024.10.01, minSdk 26/targetSdk 36) · `gradlew assembleDebug` → BUILD SUCCESSFUL, `app-debug.apk` generado
 
-## E1 · Cimientos y semilla estructural *(0/6)* → F0
+## E1 · Cimientos y semilla estructural *(6/6)* ✅ → F0
 
-- [ ] **E1.1** Migración 001: líneas, puestos, catálogos base
-  - LEE: `04 §2.1`, `04 §2.5`, `04 §2.6`
-  - VERIFICA: migración aplica y revierte contra LocalDB
-- [ ] **E1.2** Semilla estructural: 10 líneas, L8 Bolsón, prioridad base
-  - LEE: `04 §2.1`, `04 §2.2`, `§3.2`, `§3.3`
-  - VERIFICA: 10 líneas · exactamente una con `es_bolson=1` · orden de prioridad correcto
-- [ ] **E1.3** Semilla `ProximidadLinea` — **grafo dirigido, corrección A1**
-  - LEE: `00 §A1`, `00 §A2`, `00 §A3`, `04 §2.3`
-  - VERIFICA: 90 filas · L8 sin filas como origen · ninguna fila con origen = destino
-- [ ] **E1.4** Prueba dedicada de la fila de L10
-  - LEE: `00 §A1`
-  - VERIFICA: L10 = `L9, L3, L6, L7, L4, L2, L1, L5, L8` — celda por celda
-- [ ] **E1.5** Semilla de capacidades físicas y catálogos de excepción/rechazo/paro
-  - LEE: `04 §2.7`, `04 §5.4`, `04 §4.3`
-  - VERIFICA: conteos esperados
-- [ ] **E1.6** Pipeline CI: build, test, arquitectura, secretos
-  - LEE: `06 §4.3`
-  - VERIFICA: pipeline en verde en local
+- [x] **E1.1** Migración 001: líneas, puestos, catálogos base
+  - VERIFICADO: migración `InicialEstructura` aplicada y revertida manualmente contra LocalDB, y de nuevo como prueba automatizada (`La_migracion_revierte_limpiamente`, `Reglas.SeguridadTests`)
+- [x] **E1.2** Semilla estructural: 10 líneas, L8 Bolsón, prioridad base
+  - VERIFICADO: 10 líneas, exactamente 1 con `es_bolson=1` (L8), 10 órdenes de prioridad vigentes distintos, L4 en orden 1 — por consulta directa y por prueba automatizada
+- [x] **E1.3** Semilla `ProximidadLinea` — grafo dirigido, corrección A1
+  - VERIFICADO: 81 filas (9 orígenes × 9 destinos; L8 sin filas como origen), sin repeticiones ni auto-referencias — prueba `Cada_una_de_las_9_lineas_origen_tiene_exactamente_9_destinos_sin_repetir`
+- [x] **E1.4** Prueba dedicada de la fila de L10
+  - VERIFICADO: `La_fila_de_L10_es_la_corregida_por_el_cliente` — `L9,L3,L6,L7,L4,L2,L1,L5,L8` exacto, más `La_proximidad_es_asimetrica_a_proposito_entre_L1_y_L5` (A3)
+- [x] **E1.5** Semilla de capacidades físicas y catálogos de excepción/rechazo/paro
+  - VERIFICADO: `CapacidadFisica` (6, placeholder — G2), `MotivoExcepcion` (7), `MotivoRechazoRecepcion` (4), `CategoriaParo`+`CausaParo` (4+5) sembrados vía `HasData`
+- [x] **E1.6** Pipeline CI: build, test, arquitectura, secretos
+  - VERIFICADO: `.github/workflows/backend-ci.yml` (build, arquitectura, unitarias, **reglas de seguridad bloqueante**, integración, auditoría de dependencias, TruffleHog) · corrido en local: **11/11 pruebas reales en verde**
+
+**Nota de diseño de esta etapa:** los datos de semilla (`DatosEstructurales`, `DatosCatalogo`) se ubicaron en `SmartAssign.Domain/Semillas/`, no en `Infrastructure` — son datos de negocio (la tabla de proximidad corregida es una decisión de negocio, A1/A3), y el ORM solo los persiste vía `HasData`. Corrige un error de capa que cometí al primer intento y arreglé antes de compilar.
 
 ## E2 · Identidad y aislamiento *(0/6)* → F1 · `[BLOQUEANTE]`
 

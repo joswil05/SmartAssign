@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Marcador provisional. El icono definitivo se define en la etapa E6
+         junto al resto del sistema de diseño (docs/03_UIUX_BRIEF.md). -->
+    <path
+        android:fillColor="#2F6FED"
+        android:pathData="M54,30 A24,24 0 1 1 53.99,30 Z" />
+    <path
+        android:fillColor="#F4F7FA"
+        android:pathData="M44,42 L64,42 L64,50 L52,50 L52,54 L64,54 L64,74 L44,74 L44,66 L56,66 L56,62 L44,62 Z" />
+</vector>
