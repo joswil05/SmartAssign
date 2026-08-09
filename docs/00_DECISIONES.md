@@ -97,7 +97,7 @@ L10, L9, L3, L5, L7, L6, L2, L1
 
 **Derivación:** es la jerarquía de prioridad configurada, invertida, excluyendo la **L8** (está vacía por definición — es lo que dispara el mecanismo) y excluyendo la **línea que solicita**. Se implementa como derivación, no como lista escrita, para que respetar §12.6 (prioridad configurable en caliente) no exija mantener dos listas en sincronía.
 
-> ⚠ **Matiz sin cerrar:** con la configuración base y L4 solicitando, la derivación reproduce exactamente la lista de arriba. Queda por confirmar si L4 está excluida **por ser la solicitante en ese ejemplo** o si **nunca** puede ser donante bajo ninguna circunstancia. Se implementa la primera lectura. Ver `⚠ PENDIENTE-A5b`.
+> **A5b cerrada — cliente:** **L4 sí puede ser donante.** La exclusión de la lista publicada era por ser la línea solicitante en ese ejemplo, no una exclusión permanente. La derivación es: invertir la prioridad vigente, excluir la L8 y excluir la línea que solicita.
 
 *Impacta:* 04, 05 (motor de extracción inversa), 06.
 
@@ -132,11 +132,11 @@ Precisión sobre §4.1 y §4.2:
 
 *Impacta:* 04 (la fatiga cuelga de la asignación, no del trabajador), 02 (el B aparece en las colas de relevo), 05.
 
-## A7b · Personal de liderazgo y matriz de compatibilidad — 🔵 Cerrada — propuesta aceptada
+## A7b · Personal de liderazgo y matriz de compatibilidad — 🟢 Cerrada — cliente
 
 §4.1 permite asignar manualmente a personal de liderazgo en déficit crítico, pero §4.2 no le da casilla en ninguna fila de la matriz.
 
-**Resolución:** la asignación manual de liderazgo **sí salta la matriz de categoría**, y **solo** bajo estas condiciones acumulativas:
+**Confirmado por el cliente: la asignación manual de liderazgo SÍ salta la matriz de categoría**, y solo bajo estas condiciones acumulativas:
 
 1. Es un **acto deliberado de dos pasos** (§4.1): seleccionar primero el puesto destino, registrar después a la persona. Nunca por sugerencia del motor.
 2. Ningún motor automático propone jamás a personal de liderazgo (§4.1, textual).
@@ -201,6 +201,48 @@ El cliente descartó los guantes, **no** las demás condiciones de uso. Siguen v
 > **Y la acción primaria se queda en 64 dp** — no por el guante, sino porque es la que más se usa y la que menos puede fallar.
 
 *Impacta:* 03 (§1, §2.3, §3.5, §5.1), 05 (pruebas de accesibilidad), 06 (criterio de salida de F12), 01 (contexto de uso).
+
+## A12 · Los tiempos de fatiga y recuperación ya existen en los datos reales — 🟢 Cerrada — datos del cliente
+
+El archivo del cliente trae, **por puesto**, dos columnas ya rellenas en 67 de 98 puestos:
+
+| Columna | Significado | Valores reales |
+|---|---|---|
+| `TiempoEnPuesto` | Horas antes de necesitar relevo | 1, 2, 3, 5, 8 |
+| `TiempoDeRecup` | Horas antes de poder volver a ese puesto | 1, 2, 3, 5, 8, **24**, **48** |
+
+### Esto reemplaza y generaliza A4
+
+**A4 decía** que la regla de no repetición era exclusiva de "Girar botellas". Los datos muestran que es un **mecanismo general**: cada puesto tiene su propio tiempo de recuperación, y "Girar botellas" simplemente tiene 24 h.
+
+| Puesto | En puesto | Recuperación |
+|---|---|---|
+| Revisión 1,1 | 1 h | 3 h |
+| Revisión 2 | 1 h | 2 h |
+| **Girar botellas 1, 2 y 3** | 2 h | **24 h** |
+| **Limpieza (L4 y L6)** | — | **48 h** |
+
+> **Es un modelo mejor que el que teníamos.** Un solo mecanismo —`recuperación por puesto`— cubre tanto la rotación normal como la regla de 24 h, y además aparece un caso que no conocíamos: **48 h en los puestos de Limpieza**. Ya no hay una regla especial escrita para un puesto concreto: hay un dato por puesto.
+
+**Sustituye:** A4 punto 1. La bandera `aplica_no_repeticion_24h` deja de existir; en su lugar, `Puesto.horas_recuperacion`.
+
+**Fijo o rotativo se deriva del dato:** los 31 puestos **sin** `TiempoEnPuesto` son fijos; los 67 **con** valor son rotativos. Coincide exactamente con la distinción de la especificación.
+
+*Impacta:* 04 (`Puesto.horas_recuperacion` en vez de la bandera), 05, 07 (deja de ser un parámetro a calibrar en el piloto).
+
+## A13 · El "perfil preferente" es el sexo preferente del puesto — 🟢 Cerrada — datos del cliente
+
+Los datos traen `Personal.Sexo` (siempre relleno) y `Puesto.SexoPreferente` (relleno en los 98 puestos): **Masculino 32, Femenino 26, Indistinto 31**.
+
+Encaja exactamente con la regla blanda de §7.3: el puesto declara una preferencia por razones ergonómicas, y **puede ceder** ante la necesidad.
+
+> **Matiza A8 sin contradecirla.** A8 cerró que no se crea una *categoría nueva de regla* por sexo — y no se crea: el sexo preferente **entra por el contenedor que ya existía**, el perfil preferente, con su comportamiento de regla blanda que cede en los niveles 2 y 4 de la escalera. Sigue sin ser nunca una regla dura.
+
+**Y `PerfilRequerido` es otra cosa:** es la **categoría** exigida por el puesto (Supervisor, Operador, Averiero, Estibador, Indistinto, Genérico, Operador de filtro). Es la matriz de compatibilidad, no la preferencia.
+
+⚠ **Los datos vienen sucios:** la columna `SexoPreferente` contiene en algunas filas valores que pertenecen a `PerfilRequerido` (`Supervisor`, `Operador`, `Averiero`, `Estibador`) y una errata (`Femenina`). El importador debe rechazarlos, no adivinarlos.
+
+*Impacta:* 04, 05, 07 (limpieza en la importación).
 
 ## A9b · Vigencia del anexo de arquitectura — 🟡 Supuesto declarado
 
@@ -805,8 +847,6 @@ Distribución del APK: **autoalojada en el propio servidor de planta**, con veri
 | **E4** Dispositivos | 🔴 Abierta | `minSdk 26` (Android 8.0), `targetSdk` actual. | Solo ajusta el piso de compatibilidad. **Ya no afecta a las notificaciones**: FCM funciona desde Android 4 y no depende del servicio en primer plano. |
 | ~~**E5** Red~~ | 🟢 **Cerrada — cliente** | **Los teléfonos tienen conexión a internet.** La arquitectura de notificaciones de D5 (FCM) es viable sin reservas. | — |
 | **E7** Línea base de KPIs | 🔴 Abierta | No existe medición previa (§1.1). KPIs propuestos con línea base *a establecer en las dos primeras semanas*. | Si hay cifras actuales, los objetivos del PRD pasan a ser metas verificables desde el día uno. |
-| **A5b** Donante L4 | 🔴 Abierta | L4 se excluye de la extracción inversa **por ser la solicitante** en el ejemplo, no de forma permanente. | Si nunca puede ser donante, la derivación de A5 necesita una exclusión fija adicional. |
-| **A7-orig** Liderazgo | 🔴 Abierta | Propuesta A7b: salta la matriz de categoría por acto deliberado de dos pasos con justificación, **nunca** las médicas. | Si no debe saltarla, el §4.1 queda sin vía de aplicación en déficit crítico. |
 | **A9-orig** Vigencia del anexo | 🟡 Supuesto | El anexo (declarado sobre la v3.0) sigue vigente: solo prescribe plataforma. | — |
 
 ---
@@ -889,18 +929,73 @@ Infraestructura nueva total: un servicio en un servidor.
 
 ---
 
+# G · Huecos que destapan los datos reales
+
+El archivo del cliente resuelve mucho *(A12, A13)* pero deja cuatro cosas sin las que ciertos motores no pueden funcionar.
+
+## G1 · No existe la distinción Operador A / B / C — 🔴 **Abierta · la más importante**
+
+Las categorías reales del padrón son:
+
+| Categoría real | Personas activas |
+|---|---|
+| OPERARIO | 120 |
+| **OPERADOR DE EQUIPOS** | **22** |
+| SUPERVISOR DE LINEA | 6 |
+| AUXILIAR DE CONTROL DE MATERIALES | 4 |
+| OPERARIO DE CONTROL DE AVERIAS | 3 |
+| OPERADOR DE CALDERAS | 2 |
+| OPERARIO DE FILTROS Y TANQUERIA | 2 |
+| Jefatura, coordinación y análisis | 5 |
+
+**No hay ninguna marca que distinga A, B o C.** Los 22 operadores de equipos son una sola categoría indiferenciada.
+
+> **Por qué bloquea:** el arranque de turno depende de que, cuando falta el titular de una máquina, el sistema encuentre **un Operador B** para suplirlo. Sin la distinción, no hay a quién buscar. Y el Operador B es, según la especificación, "el recurso más disputado de la planta" — toda la jerarquía de prioridad existe para repartirlo bien.
+
+**Bloquea:** el barrido automático de puestos fijos y la cobertura de vacante crítica.
+
+## G2 · No hay ni un solo dato médico en el archivo — 🔴 Abierta
+
+Búsqueda exhaustiva sobre las 8 hojas: **cero coincidencias** con restricción, médico, lesión, limitación, embarazo, carga, apto o similares.
+
+> **Por qué importa:** es la única regla del sistema que nunca cede, y la razón por la que la especificación insiste en mostrarla antes de consolidar cada registro. El mecanismo se puede construir sin los datos —y se construirá—, pero **no se puede poner en producción sin ellos**: protegería a nadie.
+
+**Bloquea:** producción, no construcción.
+
+## G3 · La estructura real es de 7 líneas con puestos, no 10 — 🔴 Abierta
+
+- **Puestos definidos:** L01 a L07 — 98 puestos. L01 tiene 29; L07 solo 4.
+- **Personal asignado a:** Línea 1, 2, 4, 6 y 8, más **MAQUILA, PET, 1605 y 1606**.
+- **Programa de producción:** solo Línea 1, 2 y 4.
+- Las hojas `Lineas`, `Equipos` y `Operadores` están **vacías**.
+
+La especificación describe 10 líneas con la L8 como Bolsón. Los datos no lo contradicen necesariamente —pueden estar incompletos— pero no lo confirman, y aparecen cuatro destinos que la especificación no menciona.
+
+**Bloquea:** la carga de datos reales, no la construcción.
+
+## G4 · La tabla de puestos por SKU está casi vacía — 🔴 Abierta
+
+Solo 18 filas, y la mayoría incompletas: 3 SKU de Línea 1 con 3 puestos cada uno, y "Alcohol" de Línea 4 con 6.
+
+> **Por qué importa:** es lo que determina qué puestos existen hoy y cuáles quedan fuera de operación al cambiar de producto. Sin ella, el sistema no sabe cuántos puestos tiene que cubrir cada día.
+
+**Bloquea:** el cambio de SKU y el cálculo de cobertura con datos reales.
+
+---
+
 ## Resumen de estado
 
 | Bloque | Cerradas | Supuestos | Abiertas |
 |---|---|---|---|
-| A · Correcciones a la fuente | 11 | 1 | 2 (A5b, A7-orig) |
+| A · Correcciones a la fuente | 14 | 1 | — |
 | B · Motores | 12 | — | — |
 | C · Flujos y estados | 15 | — | — |
 | D · Seguridad | 7 | 1 | — |
 | E · Entorno | 4 | — | 3 |
 | F · Arquitectura y despliegue | 4 | — | — |
-| **Total** | **53** | **2** | **5** |
+| **G · Huecos de los datos reales** | — | — | **4** |
+| **Total** | **56** | **2** | **7** |
 
-**Ninguna pendiente bloquea la construcción.** Las tres abiertas de entorno (E3 servidor, E4 dispositivos, E7 línea base) se resuelven con un supuesto declarado y solo ajustan detalles de empaquetado o medición.
+**La construcción arranca sin bloqueos.** De las siete abiertas, solo **G1** detiene una etapa concreta (el arranque de turno); las demás bloquean la puesta en producción, no el desarrollo.
 
-> **Lo único que está en el camino crítico y no es software: imprimir los gafetes con QR** *(E1)*.
+> **En el camino crítico y fuera del software: imprimir los gafetes con QR, y conseguir los datos médicos.**

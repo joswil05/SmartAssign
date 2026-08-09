@@ -93,60 +93,44 @@ Comprobado en esta máquina:
 
 ---
 
-# 4 · Datos simulados
+# 4 · Datos: reales primero, simulados solo para rellenar
 
-El cliente autorizó simular el perfil de los trabajadores para poder probar, con los datos reales cargándose después.
+El cliente entregó `Base de Datos.xlsx` con datos reales de planta. Eso cambia el enfoque: **el importador deja de ser una tarea del final y pasa a la etapa 3**, y lo simulado se reduce a tapar los huecos.
 
-## 4.1 El principio: la semilla es adversaria, no plausible
+## 4.1 Qué trae el archivo
 
-> **Una semilla que solo parece realista es peor que ninguna**, porque las pruebas pasan sobre datos que nunca disparan las reglas. Si ningún operario simulado tiene una restricción médica que choque con un puesto real, la regla del §7.2 nunca se ejerce y el sistema parece correcto estando roto.
+| Hoja | Contenido | Estado |
+|---|---|---|
+| **Personal** | 994 filas · **164 activos** con código, nombre, sexo, categoría, línea y fecha de ingreso | ✅ Utilizable |
+| **Puestos Fijos** | 98 puestos de L01 a L07, con **tiempo en puesto y tiempo de recuperación** | ✅ Utilizable |
+| **Programa** | Órdenes de producción con línea, SKU, turno y **velocidad** (el ritmo teórico) | ✅ Utilizable |
+| **Personal ausente** | Ausencias con motivo, fecha y hora de salida y de entrada | ✅ Utilizable |
+| **Puestos SKU** | Qué puestos exige cada producto | ⚠ Casi vacía — 18 filas |
+| Lineas · Equipos · Operadores | — | ❌ Vacías |
 
-La semilla se diseña **para provocar cada regla al menos una vez**:
+## 4.2 Lo que resuelve
 
-| Escenario sembrado | Regla que ejerce |
+- **Los tiempos de fatiga y recuperación ya no hay que calibrarlos en el piloto:** vienen por puesto, y traen un caso que no conocíamos — 48 h de recuperación en los puestos de Limpieza *(A12)*.
+- **Fijo o rotativo se deduce del propio dato:** 31 puestos sin tiempo en puesto son fijos; 67 con tiempo son rotativos.
+- **El ritmo teórico por producto** sale del programa de producción.
+- **El sexo preferente del puesto** es la preferencia blanda que la especificación ya contemplaba *(A13)*.
+
+## 4.3 Lo que falta y hay que rellenar
+
+| Hueco | Cómo se cubre mientras tanto |
 |---|---|
-| Operario con restricción que choca con su propio puesto habitual | §7.2 + escalera §8.5 nivel 1 |
-| Restricción **caducada** ayer | C14 — no debe bloquear |
-| Restricción **permanente** (`fecha_fin` nula) | C14 |
-| Operador A ausente **con** Operador B disponible | §8.3 suplente |
-| Operador A ausente **sin** Operador B | §8.3 vacante crítica |
-| Menos Operadores B que puestos fijos descubiertos | Escasez → reparto por prioridad §8.3 |
-| Persona que cerró ayer en "Girar botellas" | §7.4 + A4 + B6 |
-| Persona que cerró en "Girar botellas" **hace 3 jornadas** | B6 — debe seguir bloqueando |
-| Línea exactamente en su piso de seguridad | B5 — inmune a extracción |
-| Línea **una persona por encima** del piso | B5 — extraíble una sola vez |
-| Puesto con umbral bajo y otro con umbral alto | A4 + B3 — exceso relativo, no minutos |
-| Persona en doble turno | §11.5, B7 |
-| Persona ausente justificada | §6.1 — nunca asignable |
-| Puesto con perfil preferente y candidato sin perfil registrado | §7.3 — no se infiere |
-| Personal de liderazgo | §4.1, A7b |
-| SKU que desactiva puestos de una línea | §11.2, §5.3 |
+| **Distinción entre operadores A, B y C** *(G1)* | ⛔ **No se simula.** Es una regla de negocio: se pregunta |
+| **Restricciones médicas** *(G2)* | Simuladas para probar el mecanismo. **Nunca van a producción** |
+| Puestos por SKU incompletos *(G4)* | Simulados por línea para poder probar el cambio de producto |
+| Líneas 8, 9 y 10 sin puestos *(G3)* | Simuladas |
 
-## 4.2 Separación de semillas
+## 4.4 La parte simulada es adversaria, no plausible
 
-```
-ops/seed/
-├── estructural/     10 líneas · prioridad · PROXIMIDAD (A1) · capacidades
-│                    ── inmutable, va también a producción ──
-├── catalogo/        motivos de excepción, rechazo, paro
-│                    ── editable, va a producción ──
-└── simulado/        ~160 personas · ~300 puestos · SKU · restricciones
-                     ── SOLO desarrollo. Marcado. Nunca a producción ──
-```
+> **Datos que solo "parecen realistas" son peores que ninguno**, porque las pruebas pasan sobre información que nunca dispara las reglas. Si ninguna persona simulada tiene una restricción que choque con un puesto real, la regla médica jamás se ejerce y el sistema parece correcto estando roto.
 
-**Guarda técnica:** las filas simuladas llevan `origen_dato = 'simulado'` y hay una prueba que **falla si la base de producción contiene una sola fila con esa marca**.
+Lo simulado se diseña **para provocar cada regla al menos una vez**: una restricción que choca con el puesto habitual de esa persona, otra caducada ayer que no debe bloquear, otra permanente, un titular ausente con y sin suplente disponible, una línea exactamente en su mínimo y otra una persona por encima, alguien que estuvo en Girar botellas hace 20 horas y otro hace 30.
 
-## 4.3 El camino de los datos reales
-
-Se construye desde el principio, no se improvisa al final:
-
-- **UT-E3.6** — importador desde CSV/Excel con validación e informe de errores por fila.
-- El importador **rechaza el lote entero** si una fila es inválida: cargar medio padrón deja el sistema en un estado peor que vacío.
-- **Las restricciones médicas se importan mapeadas al vocabulario de capacidades** *(§7.2)*. Si una fila trae una capacidad que no está en el catálogo, se rechaza — no se crea sobre la marcha.
-
-> ⚠ **Lo simulado desbloquea la construcción, no la puesta en producción.** El vocabulario real de capacidades físicas *(H6)* sigue siendo condición para operar: sin él, las restricciones reales no se pueden mapear y la regla del §7.2 no protege a nadie.
-
----
+**Separación estricta:** las filas simuladas llevan marca de origen y hay una prueba que **falla si aparece una sola en la base de producción**.
 
 # 5 · Continuidad entre sesiones
 
