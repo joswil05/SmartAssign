@@ -27,6 +27,10 @@ public class SmartAssignDbContext : DbContext
     public DbSet<MotivoRechazoRecepcion> MotivosRechazoRecepcion => Set<MotivoRechazoRecepcion>();
     public DbSet<CategoriaParo> CategoriasParo => Set<CategoriaParo>();
     public DbSet<CausaParo> CausasParo => Set<CausaParo>();
+    public DbSet<Usuario> Usuarios => Set<Usuario>();
+    public DbSet<SesionDispositivo> SesionesDispositivo => Set<SesionDispositivo>();
+    public DbSet<DispositivoPush> DispositivosPush => Set<DispositivoPush>();
+    public DbSet<Auditoria> Auditorias => Set<Auditoria>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

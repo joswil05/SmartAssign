@@ -30,8 +30,11 @@ public class LineaConfig : IEntityTypeConfiguration<Linea>
         b.HasIndex(x => x.EsBolson).IsUnique().HasFilter("[es_bolson] = 1")
             .HasDatabaseName("UX_Linea_bolson");
 
-        // Un supervisor no puede tener dos líneas (§2.3) — la FK real a
-        // Usuario se añade en la etapa E2, cuando esa tabla exista.
+        // Un supervisor no puede tener dos líneas (§2.3). FK real a Usuario
+        // añadida en la etapa E2 (antes era columna simple, ver E1).
+        b.HasOne<SmartAssign.Domain.Entities.Usuario>().WithMany()
+            .HasForeignKey(x => x.SupervisorActualId).OnDelete(DeleteBehavior.Restrict);
+
         b.HasIndex(x => x.SupervisorActualId).IsUnique()
             .HasFilter("[supervisor_actual] IS NOT NULL")
             .HasDatabaseName("UX_Linea_supervisor");

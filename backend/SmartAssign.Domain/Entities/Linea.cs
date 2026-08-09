@@ -27,9 +27,10 @@ public class Linea
     public string Situacion { get; set; } = "inactiva";
 
     /// <summary>
-    /// FK a Usuario(Id) — la tabla Usuario no existe hasta la etapa E2.
-    /// Se deja como columna simple sin restricción de clave foránea hasta
-    /// entonces; la migración de E2 añade la FK real (04 §11.2, expansión).
+    /// FK a Usuario(Id) (§2.3). La línea NUNCA se guarda en la sesión del
+    /// usuario ni en el dispositivo — este campo es la única fuente de
+    /// verdad de qué supervisor tiene cada línea, resuelta en vivo en cada
+    /// petición (04 §6.1, D6).
     /// </summary>
     public int? SupervisorActualId { get; set; }
 

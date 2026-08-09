@@ -1,7 +1,7 @@
 # SmartAssign — Estado de ejecución
 
 **Se lee al empezar cada sesión. Se actualiza al terminar cada UT.**
-Última actualización: 2026-08-09 · UTs completadas: **9 / 95**
+Última actualización: 2026-08-09 · UTs completadas: **15 / 95**
 
 ## Decisiones de esta sesión que no estaban en los documentos
 
@@ -12,6 +12,16 @@
 - Skill externo `ui-ux-pro-max` vendorizado en `.claude/skills/ui-ux-pro-max-skill/` (no instalado como plugin — se invoca su script `search.py` directamente por ruta cuando llegue la etapa E6).
 - **Backend apunta a .NET 10 / EF Core 10** (versión realmente instalada), no .NET 8 como decía el TRD original.
 - Vulnerabilidad `NU1903` en `Microsoft.OpenApi` (dependencia transitiva del template `webapi` de .NET 10): actualizada a 2.3.0 (la más reciente disponible), sigue marcada por el feed de asesorías sin versión parcheada todavía. Rastreada en el CI como `continue-on-error`, no ignorada.
+
+### Decisiones de ingeniería de la etapa E2 (delegadas, no de negocio — R2 no aplica)
+
+- **AD/Entra ID no tiene adaptador todavía.** D6 dice "si la empresa lo tiene"; no hay entorno AD disponible en esta fase ni datos de conexión que nadie entregó. `IServicioAutenticacion` ya distingue `Usuario.OrigenIdentidad`; un usuario `"ad"` hoy rechaza el login con `ORIGEN_AD_NO_DISPONIBLE` en vez de fallar en silencio contra credenciales locales inexistentes. Queda listo para que un adaptador real lo implemente cuando el cliente provea el servicio.
+- **Bloqueo automático por reintentos fallidos: mecanismo sin umbral.** El esquema (04 §6.1) ya trae `Usuario.IntentosFallidos`/`BloqueadoHasta`, y el login los respeta (si `BloqueadoHasta` está en el futuro, rechaza) — pero **nada fija ese campo automáticamente todavía**, porque ningún documento declara cuántos intentos ni cuántos minutos de bloqueo (no está ni en la tabla de `Parametro`, 04 §9). Inventar el número violaría R2. La tabla `Parametro` en sí **no tiene UT propia** en el plan — se creará cuando la primera regla que de verdad la necesite lo exija (candidata natural: E4 o E5).
+- **El contador de PIN reutiliza `IntentosFallidos`.** El esquema declara una sola columna de reintentos por usuario, no una separada para login vs. PIN — reutilizarla es la lectura más fiel del dato declarado. Al tercer PIN fallido (04 §6.4, número explícito en el documento) se revoca la sesión activa del dispositivo y el contador se reinicia.
+- **Login revoca otras sesiones activas del mismo `device_id`.** D6: "el teléfono se trata como compartido por línea". Es limpieza de concurrencia, no una regla de negocio nueva: al entrar un usuario en un teléfono, cierra cualquier sesión que hubiera quedado abierta de otro usuario en ese mismo aparato.
+- **RLS (capa 3) solo cubre `Puesto` por ahora.** `JornadaLinea`, la otra tabla que 04 §6.3 menciona, no existe hasta E5 — una `SECURITY POLICY` no puede apuntar a una tabla inexistente. Su predicado se añade con `ALTER SECURITY POLICY` en la migración que cree esa tabla.
+- **Primeros dos endpoints reales:** `GET /api/lineas` (coordinador) y `GET /api/lineas/{lineaId}` (coordinador o el supervisor dueño, vía `AlcanceLineaEndpointFilter`) — solo el resumen de la línea, no la malla de puestos (eso es E6). Existen para que la suite de aislamiento y PC-1 tengan algo real de la Api que golpear, y fijan el patrón (`RequireAuthorization()` + `AddEndpointFilter<AlcanceLineaEndpointFilter>()`) que todo endpoint de línea futuro debe repetir.
+- **`JwtBearerOptions.MapInboundClaims = false`** — sin esto, el handler de validación remapea `"sub"` al URI largo heredado de WS-Federation y `FindFirst(ClaimsSmartAssign.UsuarioId)` deja de encontrar el claim. Gotcha conocido de ASP.NET Core, no una decisión de negocio.
 
 > **Protocolo de sesión:**
 > 1. Leer este fichero → identificar la siguiente UT sin marcar.
@@ -50,28 +60,22 @@
 
 **Nota de diseño de esta etapa:** los datos de semilla (`DatosEstructurales`, `DatosCatalogo`) se ubicaron en `SmartAssign.Domain/Semillas/`, no en `Infrastructure` — son datos de negocio (la tabla de proximidad corregida es una decisión de negocio, A1/A3), y el ORM solo los persiste vía `HasData`. Corrige un error de capa que cometí al primer intento y arreglé antes de compilar.
 
-## E2 · Identidad y aislamiento *(0/6)* → F1 · `[BLOQUEANTE]`
+## E2 · Identidad y aislamiento *(6/6)* ✅ → F1
 
-- [ ] **E2.1** `Usuario`, `SesionDispositivo`, `DispositivoPush`
-  - LEE: `04 §6.1`, `04 §10`
-  - VERIFICA: migración aplica y revierte
-- [ ] **E2.2** JWT + refresh + PIN — **sin `linea_id` en el token**
-  - LEE: `00 §D6`, `04 §6.4`, `§2.3`
-  - VERIFICA: prueba que inspecciona los claims y falla si aparece `linea_id`
-- [ ] **E2.3** Filtro de rol + filtro de alcance por línea
-  - LEE: `04 §6.2`, `§2.2`
-  - VERIFICA: supervisor de L2 rechazado en todo endpoint de L4
-- [ ] **E2.4** RLS en SQL Server como tercera capa
-  - LEE: `04 §6.3`
-  - VERIFICA: con el filtro de aplicación desactivado, la consulta sigue bloqueada
-- [ ] **E2.5** `Auditoria` + `sp_RegistrarAuditoria`, **incluidos los rechazos**
-  - LEE: `04 §8`, `§12.7`
-  - VERIFICA: una operación y un rechazo dejan fila
-- [ ] **E2.6** Suite de aislamiento completa
-  - LEE: `05 §6.2`
-  - VERIFICA: suite en verde
+- [x] **E2.1** `Usuario`, `SesionDispositivo`, `DispositivoPush`
+  - VERIFICADO: migración `IdentidadYAuditoria` aplicada y revertida (misma prueba automatizada de reversibilidad de E1, ahora cubre las 5 migraciones); FK real `Linea.SupervisorActualId → Usuario` añadida (antes columna simple)
+- [x] **E2.2** JWT + refresh + PIN — **sin `linea_id` en el token**
+  - VERIFICADO: `TokenClaimsTests` (4 pruebas) — `El_access_token_nunca_lleva_linea_id`, claims exactos `sub`/`rol`/`nombre`, expiración a 15 min, refresh opaco de un solo segmento; `CicloDeSesionTests` (6 pruebas) — refresh, PIN correcto, **3 PIN fallidos cierran la sesión (04 §6.4)**, PIN nunca abre sesión ajena, logout revoca refresh
+- [x] **E2.3** Filtro de rol + filtro de alcance por línea
+  - VERIFICADO: `AislamientoEntreSupervisoresTests` (6 pruebas, Api real vía `WebApplicationFactory`) — `Un_supervisor_de_L2_es_rechazado_en_el_endpoint_de_L4`, coordinador sin filtro, supervisor no puede listar todas, sin token → 401, supervisor sin línea asignada → 403
+- [x] **E2.4** RLS en SQL Server como tercera capa
+  - VERIFICADO: `AislamientoYAuditoriaTests` (3 pruebas de RLS) contra **conexión SQL cruda, sin ningún filtro de aplicación** — sin `SESSION_CONTEXT` bloquea todo (0 filas), coordinador ve todo, supervisor de L1 solo ve L1 aunque existan filas de L2. Solo cubre `Puesto`; `JornadaLinea` se añade en E5 (ver nota de ingeniería arriba)
+- [x] **E2.5** `Auditoria` + `sp_RegistrarAuditoria`, **incluidos los rechazos**
+  - VERIFICADO: `Un_login_exitoso_deja_una_fila_OK_en_Auditoria` y `Un_login_con_clave_equivocada_deja_una_fila_RECHAZO_en_Auditoria`, ambas vía el procedimiento almacenado real (Dapper), no un INSERT de EF
+- [x] **E2.6** Suite de aislamiento completa
+  - VERIFICADO: **32/32 pruebas reales en verde** en los 4 proyectos (Domain.UnitTests 4, Arquitectura.Tests 2, Api.IntegrationTests 6, Reglas.SeguridadTests 20) — incluida `Dos_supervisores_en_dos_telefonos_ninguno_ve_la_linea_del_otro`, la prueba automatizada exacta de PC-1
 
-> **→ PC-1** · Validación humana: dos supervisores en dos teléfonos, ninguno ve la línea del otro.
+> **→ PC-1** · Validación humana: dos supervisores en dos teléfonos, ninguno ve la línea del otro. **Listo para validar** — requiere H2 (teléfonos físicos) y la app real (E6); por ahora demostrado por API + pruebas automatizadas.
 
 ## E3 · Personal y puestos *(0/6)* → F2
 
@@ -244,4 +248,5 @@
 
 | Fecha | UTs completadas | Notas |
 |---|---|---|
-| — | — | Sin sesiones de construcción todavía |
+| 2026-08-09 | E0 (3) + E1 (6) | Esqueletos backend/Android, migración base, semilla estructural con corrección A1 verificada |
+| 2026-08-09 | E2 (6) | Identidad y aislamiento en tres capas (JWT sin `linea_id`, filtro de alcance, RLS). 32/32 pruebas en verde. Deuda documentada: bloqueo automático por reintentos sin umbral (falta `Parametro`), RLS de `JornadaLinea` diferido a E5 |
