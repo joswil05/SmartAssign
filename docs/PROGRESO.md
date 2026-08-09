@@ -1,7 +1,7 @@
 # SmartAssign — Estado de ejecución
 
 **Se lee al empezar cada sesión. Se actualiza al terminar cada UT.**
-Última actualización: 2026-08-09 · UTs completadas: **21 / 95**
+Última actualización: 2026-08-09 · UTs completadas: **29 / 95**
 
 ## Decisiones de esta sesión que no estaban en los documentos
 
@@ -129,34 +129,38 @@
 | 15 | Titular ausente en L6 **sin** Operador B en su línea | C1 |
 | 16 | L2 exactamente en su piso mínimo; L4 una persona por encima | B5 |
 
-## E4 · Motor de validación *(0/8)* → F3 · `[BLOQUEANTE]`
+## E4 · Motor de validación *(8/8)* ✅ → F3 · `[BLOQUEANTE]`
 
-- [ ] **E4.1** `fn_TieneRestriccionBloqueante` — solo vigentes
-  - LEE: `§7.2`, `00 §C14`, `04 §7.2`
-  - VERIFICA: vigente bloquea · caducada no · permanente siempre
-- [ ] **E4.2** `fn_CategoriaCompatible` — matriz §4.2 completa
-  - LEE: `§4.2`, `00 §A7`, `00 §A7b`
-  - VERIFICA: cada casilla de la matriz, incluidas las prohibidas
-- [ ] **E4.3** `fn_PerfilIncompatible` — regla blanda
-  - LEE: `§7.3`, `00 §B12`
-  - VERIFICA: `perfil` NULL → la regla **no** se aplica
-- [ ] **E4.4** `fn_ViolaNoRepeticion24h` — solo la actividad marcada
-  - LEE: `§7.4`, `00 §A4`, `00 §B6`
-  - VERIFICA: otro puesto no bloquea · 3 jornadas de descanso **sí** bloquea
-- [ ] **E4.5** `fn_VentanaArranqueBloquea`
-  - LEE: `§8.4`, `04 §4.1`
-  - VERIFICA: bloquea a quien no está físicamente en la línea
-- [ ] **E4.6** `sp_ValidarAsignacion` — los 7 pasos en orden
-  - LEE: `§7.1`, `00 §B12`, `04 §7.2`
-  - VERIFICA: el orden exacto · el primer rechazo detiene · ningún parámetro salta el paso 4
-- [ ] **E4.7** `DENY` sobre tablas críticas
-  - LEE: `04 §7.5`
-  - VERIFICA: `INSERT` directo en `Asignacion` con la cuenta de app **falla**
-- [ ] **E4.8** Suite de reglas de seguridad — médicas × 8 caminos
-  - LEE: `05 §6.2`
-  - VERIFICA: los 8 caminos deniegan, cada uno con su mensaje
+- [x] **E4.1** `fn_TieneRestriccionBloqueante` — solo vigentes
+  - VERIFICADO: 5 pruebas — vigente bloquea, caducada no, permanente siempre, futura todavía no, sin restricción no bloquea
+- [x] **E4.2** `fn_CategoriaCompatible` — matriz §4.2 completa
+  - VERIFICADO: 21 casos (`[Theory]`) cubren las cuatro filas de la matriz casilla por casilla, incluidas todas las prohibidas, más el caso G5 (fijo sin `categoria_titular` → nadie compatible)
+- [x] **E4.3** `fn_PerfilIncompatible` — regla blanda
+  - VERIFICADO: puesto sin preferencia (NULL/Indistinto) no aplica · persona sin sexo registrado no aplica (nunca se infiere) · sexo distinto bloquea · sexo igual no
+- [x] **E4.4** `fn_ViolaNoRepeticion24h` — generalizada (A12/B6, ver nota de ingeniería)
+  - VERIFICADO: puesto sin horas de recuperación no tiene la regla · misma actividad dentro de la ventana bloquea · misma actividad ya fuera de la ventana (3 jornadas después) no bloquea · actividad distinta no bloquea
+- [x] **E4.5** `fn_VentanaArranqueBloquea`
+  - VERIFICADO: sin jornada abierta no bloquea · ventana abierta bloquea a quien no está físicamente en la línea · no bloquea a quien sí está · ventana ya cerrada no bloquea a nadie
+- [x] **E4.6** `sp_ValidarAsignacion` — los 7 pasos en orden
+  - VERIFICADO: 8 pruebas, una por paso — cada escenario hace fallar simultáneamente el paso bajo prueba y uno posterior, y se confirma que el código de rechazo es siempre el del paso más temprano. Confirmado explícitamente: ni `@permitir_ceder_perfil` ni `@es_liderazgo_manual` saltan el paso 4 (médica); `@permitir_ceder_perfil` es el único que cambia el resultado, y solo en el paso 5
+- [x] **E4.7** `DENY` sobre tablas críticas
+  - VERIFICADO: `INSERT` directo en `Asignacion` con `rol_app` falla con "INSERT permission was denied" (mismo patrón de impersonación `EXECUTE AS` que E3.4). `DELETE`/`UPDATE` en `Auditoria` denegados también. `Movimiento` queda pendiente — esa tabla no existe todavía (ver nota de ingeniería)
+- [x] **E4.8** Suite de reglas de seguridad — médicas × 8 caminos
+  - VERIFICADO: 8 pruebas — normal, cediendo perfil, liderazgo manual, la función de bajo nivel directamente, vigente hoy, permanente, caducada (control: no debe bloquear), e `INSERT` directo saltándose el procedimiento. Los 8 caminos están definidos y documentados en la nota de ingeniería de abajo — 05 §6.2 dice "médica × 8 caminos" sin enumerarlos
 
-> **→ PC-2** · Validación humana: la restricción médica bloquea por los ocho caminos.
+> **→ PC-2** · Validación humana: la restricción médica bloquea por los ocho caminos. **Lista para validar.**
+
+### Decisiones de ingeniería de la etapa E4 (delegadas, no de negocio — R2 no aplica)
+
+- **`fn_ViolaNoRepeticion24h` sintetiza A12 y B6, que nunca se habían puesto una junto a la otra.** A4/B6 (redactadas antes de tener datos reales) describían la regla como "solo Girar botellas, ventana = última jornada trabajada, no calendario". A12 (datos reales, etapa E3) la generalizó a un valor en HORAS propio de cada puesto (`horas_recuperacion`: 24 en Girar botellas, 48 en Limpieza) y jubiló la bandera booleana original. Ninguna decisión revisó la otra. La síntesis usada aquí es literal, no inventada: el ancla temporal es `UltimaTareaJornada.registrado_en` — que por diseño (C13) solo avanza al cerrar un turno realmente trabajado, nunca por el paso del calendario — y el umbral es `Puesto.horas_recuperacion`, el dato real. `docs/06_ROADMAP.md` (P3.4) todavía cita el lenguaje viejo de A4 ("solo la actividad marcada"); queda desactualizado por el mismo motivo que 04 §2.6/§3.1 lo estaban antes de la corrección de la etapa E3.
+- **`TipoActividadId` solo se puebla para "Girar botellas".** Es el único agrupamiento que A14 confirma con dato real (las tres filas "Girar botellas 1/2/3" comparten `TiempoDeRecup=24`). Agrupar otros nombres de puesto por similitud de texto (p. ej. "Limpieza") inventaría una equivalencia que el dato no respalda — de hecho lo contradice: "Limpieza" tiene 5h de recuperación en L1 y 48h en L4/L6, tres valores distintos bajo el mismo nombre. El importador (E3.6) se extendió con este único caso; el resto de los 67 puestos rotativos reales queda con `tipo_actividad_id` NULL, lo que es correcto: sin agrupación confirmada, la regla de no repetición simplemente no aplica todavía a esos puestos.
+- **`Parametro` se crea en esta etapa** (04 §9), exactamente como se anticipó en la nota de ingeniería de E2 ("candidata natural: E4 o E5"). `fn_VentanaArranqueBloquea` es la primera regla que de verdad necesita un parámetro configurable (`ventana_arranque_min`). Se sigue al pie de la letra `docs/06_ROADMAP.md` P5.1: *"NO inventes umbrales por defecto. Se leen de Parametro y pueden estar vacíos."* No se siembra ninguna fila para `ventana_arranque_min` — sigue "a definir" (04 §9) — y la función trata su ausencia como "la regla no aplica todavía", nunca como un valor por defecto inventado.
+- **`JornadaLinea` y `Asignacion` se crean en esta etapa, incompletas a propósito.** `sp_ValidarAsignacion` (04 §7.2) necesita `Asignacion` para su paso 1, y `fn_VentanaArranqueBloquea` necesita saber cuándo cierra la ventana de una jornada — ninguna de las dos tablas existía todavía (el plan las agenda para E5.1/E5.2). `JornadaLinea` se crea aquí con solo las cuatro columnas que E4 necesita (`linea_id`, `arrancado_en`, `ventana_arranque_fin`, `cerrado_en`); el resto del diseño ya completo en 04 §4.1 (`turno_id`, `dia_operacion`, `sku_id`, `supervisor_id`, `estado`) se añade con `ALTER TABLE` cuando `Turno` se construya en E5.1 — mismo patrón ya usado con `Puesto` y `Personal` en E3. `Asignacion` sí se crea completa (04 §5.1 ya estaba totalmente especificado); lo que falta es `sp_AsignarPersona` (la escritura atómica con concurrencia, B1), que queda para cuando exista un endpoint real que la invoque.
+- **`JustificacionExcepcion` se crea completa** (04 §5.4) porque `Asignacion.justificacion_id` la referencia por FK — aunque ningún flujo la escribe todavía (eso llega con las excepciones del Coordinador, A6, en etapas posteriores).
+- **RLS extendida a `JornadaLinea` (04 §6.3).** La migración `RlsAlcanceLinea` de E2 ya había dejado escrito que el predicado de aislamiento sobre `JornadaLinea` se añadiría "en la migración que cree esa tabla" — es esta. `ALTER SECURITY POLICY ... ADD FILTER PREDICATE ... ON dbo.JornadaLinea`, mismo mecanismo que ya protege `Puesto` desde E2.
+- **El DENY de `Movimiento` (04 §7.5) sigue pendiente.** La nota de la etapa E3 anticipaba que E4.7 cubriría "Asignacion, Movimiento, Auditoria" juntas; en la práctica `Movimiento` (Parte X, §5.2) todavía no existe como tabla — se crea en la etapa del motor de movimiento entre líneas (E8). El DENY se aplicará ahí, mismo criterio que ya se usó para no adelantar RLS sobre `JornadaLinea` en E2 cuando esa tabla tampoco existía.
+- **Los 8 caminos de la suite médica (E4.8, PC-2) se definieron explícitamente, porque 05 §6.2 exige "médica × 8 caminos" sin enumerarlos.** Elegidos para cubrir literalmente cada cláusula de B12 ("ningún nivel, ningún motor, ningún rol, ninguna urgencia"): (1) camino normal, (2) cediendo perfil preferente, (3) con liderazgo manual (A7b), (4) la función de bajo nivel invocada directamente, (5) restricción vigente hoy, (6) restricción permanente, (7) restricción caducada — control negativo, para probar que la regla no se vuelve más estricta de lo que C14 pide — y (8) `INSERT` directo saltándose `sp_ValidarAsignacion` por completo (mismo mecanismo que E4.7).
+- **`@mensaje` de `sp_ValidarAsignacion` es informativo, no la micro-copia literal de 02 §5.4.** El catálogo de 02 §5.4 interpola nombre, línea y minutos restantes — datos de presentación que le corresponde construir a la capa de aplicación cuando exista una UI real que los consuma (etapa E6), no a este procedimiento. Lo que E4.6 verifica y garantiza es `@codigo_rechazo`, que es lo que gobierna el orden y el comportamiento.
 
 ## E5 · Jornada, prioridad y barrido *(0/7)* → F4a
 
@@ -282,7 +286,8 @@
 | Fecha | UTs completadas | Notas |
 |---|---|---|
 | 2026-08-09 | E0 (3) + E1 (6) | Esqueletos backend/Android, migración base, semilla estructural con corrección A1 verificada |
-| 2026-08-09 | E2 (6) | Identidad y aislamiento en tres capas (JWT sin `linea_id`, filtro de alcance, RLS). 32/32 pruebas en verde. Deuda documentada: bloqueo automático por reintentos sin umbral (falta `Parametro`), RLS de `JornadaLinea` diferido a E5 |
+| 2026-08-09 | E2 (6) | Identidad y aislamiento en tres capas (JWT sin `linea_id`, filtro de alcance, RLS). 32/32 pruebas en verde. Deuda documentada: bloqueo automático por reintentos sin umbral (falta `Parametro`, creada en E4), RLS de `JornadaLinea` diferida a cuando esa tabla exista (llegó en E4, no E5 como se estimaba aquí) |
 | 2026-08-09 | E3.1–E3.4 (4) | `Personal`, extensión de `Puesto` (titular, umbrales en horas, `PerfilRequerido`), `PuestoCapacidad`, `RestriccionMedica` con `DENY DELETE` real vía `rol_app`. 38/38 pruebas en verde. Corrige 04 en dos puntos que A13/A14 ya habían cerrado pero el documento no reflejaba (`Personal.Sexo`, `Puesto.PerfilRequerido`). Extiende G1 con 4 personas no cubiertas por el resumen original. |
 | 2026-08-09 | E3.5–E3.6 (2) | **E3 completa.** Importador real ejecutado contra `Base de Datos.xlsx`: Personal 164/164 y Ausencias 12/12 cargados; Puestos Fijos rechazado por 9 filas con dato contaminado (00 §A13, confirmado con datos reales, no solo predicho) — nuevo bloqueo H8, no crítico. Semilla adversaria de los 16 escenarios (07 §4.4) construida y corrida contra `SmartAssignDev`. Nueva decisión G5 (categoría de titular de puesto fijo no derivable). `Base de Datos.xlsx` sacado del control de versiones (traía PII real). 67/67 pruebas en verde en todo el backend |
 | 2026-08-09 | H8 resuelto | Cliente confirmó `Femenina`=`Femenino` (tipeo) y que la Línea 6 no tiene más error de captura que el ya visto; calderas/filtros confirmados como Operador A. Nueva decisión G6: el importador repara `SexoPreferente` arrastrado por patrón en vez de rechazar. Reimportado: **98/98 Puestos Fijos reales cargan limpio**. 7 pruebas nuevas/ajustadas — 74/74 pruebas en verde en todo el backend |
+| 2026-08-09 | E4 (8) | **Motor de validación completo — PC-2 lista para validar.** Las 5 funciones de §7.1 + `sp_ValidarAsignacion` con los 7 pasos exactos + DENY sobre `Asignacion`/`Auditoria` + suite médica de 8 caminos. Síntesis de ingeniería entre A12 y B6 para `fn_ViolaNoRepeticion24h` (ver nota abajo). Tablas nuevas: `Parametro`, `JustificacionExcepcion`, `JornadaLinea` (mínima), `Asignacion`, `UltimaTareaJornada` — todas ya especificadas en 04, traídas antes de su etapa porque E4 las necesita para compilar/probar. RLS extendida a `JornadaLinea` (04 §6.3, ya anticipada desde E2). 58 pruebas nuevas — 132/132 en verde en todo el backend |

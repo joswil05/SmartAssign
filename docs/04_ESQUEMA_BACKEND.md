@@ -183,7 +183,7 @@ CREATE TABLE PuestoSKU (
 
 ## 2.6 Puesto
 
-> **Actualizado en la etapa E3 con lo que reveló el archivo real del cliente (A12, A13, A14)** — la versión de abajo sustituye la que describían las primeras versiones de este documento, redactadas antes de tener datos reales. Ver docs/PROGRESO.md, notas de la etapa E3.
+> **Actualizado en la etapa E3 con lo que reveló el archivo real del cliente (A12, A13, A14, G5)** — la versión de abajo sustituye la que describían las primeras versiones de este documento, redactadas antes de tener datos reales. Ver docs/PROGRESO.md, notas de la etapa E3.
 
 ```sql
 CREATE TABLE Puesto (
@@ -228,9 +228,13 @@ CREATE TABLE Puesto (
 
     CONSTRAINT UQ_Puesto UNIQUE (linea_id, codigo),
     CONSTRAINT CK_Puesto_tipo CHECK (tipo IN ('fijo','rotativo')),
+    -- 00 §G5: los 98 puestos fijos reales solo traen PerfilRequerido, que
+    -- no mapea limpio a operador_a/operador_c/averiero — exigir el valor
+    -- obligaría a inventar la categoría del titular (R2). Se conserva
+    -- solo la mitad segura: un rotativo NUNCA declara categoria_titular
+    -- (C12); un fijo puede tenerlo NULL hasta que el cliente confirme.
     CONSTRAINT CK_Puesto_categoria CHECK (
-        (tipo = 'fijo' AND categoria_titular IS NOT NULL) OR
-        (tipo = 'rotativo' AND categoria_titular IS NULL)),
+        tipo = 'fijo' OR categoria_titular IS NULL),
     CONSTRAINT CK_Puesto_umbrales CHECK (
         umbral_critico_horas IS NULL OR horas_en_puesto IS NULL
         OR umbral_critico_horas > horas_en_puesto)
@@ -352,6 +356,8 @@ CREATE TABLE AusenciaJustificada (
 
 ## 3.4 UltimaTareaJornada *(§7.4, A4, B6)*
 
+> **Existe desde la etapa E4** (UT-E4.4): `fn_ViolaNoRepeticion24h` necesita esta tabla para leerla. El escritor real (al cierre de turno, C13) se conecta en la etapa E14 — hasta entonces, la tabla se llena solo en pruebas.
+
 ```sql
 CREATE TABLE UltimaTareaJornada (
     personal_id        INT      NOT NULL PRIMARY KEY REFERENCES Personal(Id),
@@ -371,6 +377,8 @@ CREATE TABLE UltimaTareaJornada (
 # 4 · Turnos, lotes y operación
 
 ## 4.1 Turno y JornadaLinea
+
+> **`JornadaLinea` existe desde la etapa E4 en una versión mínima**: solo `linea_id`, `arrancado_en`, `ventana_arranque_fin`, `cerrado_en` y `row_version` — lo que `fn_VentanaArranqueBloquea` (E4.5) necesita para leer, más un índice único filtrado que anticipa `UQ_Jornada` (como máximo una jornada abierta por línea). `Turno` no existe todavía, así que `turno_id`, `dia_operacion`, `sku_id`, `supervisor_id` y `estado` de abajo se añaden con `ALTER TABLE` en la etapa E5 (E5.1/E5.2), cuando el resto del ciclo de vida de la jornada se construye — mismo patrón ya usado con `Puesto` y `Personal` en E3. Ver docs/PROGRESO.md, notas de ingeniería E4.
 
 ```sql
 CREATE TABLE Turno (
@@ -493,6 +501,8 @@ CREATE TABLE Desperdicio (
 # 5 · Asignaciones y movimientos
 
 ## 5.1 Asignacion — el corazón del modelo
+
+> **Existe desde la etapa E4** (UT-E4.6), completa tal como se describe abajo — `sp_ValidarAsignacion` (§7.2) necesita `Asignacion` para su paso 1 ("¿el puesto sigue libre?"). `sp_AsignarPersona` (§7.3, la escritura atómica con concurrencia) sigue pendiente de una etapa posterior; por ahora la única vía de escritura probada es una prueba de integración directa, no un endpoint.
 
 ```sql
 CREATE TABLE Asignacion (

@@ -35,6 +35,11 @@ public class SmartAssignDbContext : DbContext
     public DbSet<PuestoCapacidad> PuestosCapacidad => Set<PuestoCapacidad>();
     public DbSet<RestriccionMedica> RestriccionesMedicas => Set<RestriccionMedica>();
     public DbSet<AusenciaJustificada> AusenciasJustificadas => Set<AusenciaJustificada>();
+    public DbSet<Parametro> Parametros => Set<Parametro>();
+    public DbSet<JustificacionExcepcion> JustificacionesExcepcion => Set<JustificacionExcepcion>();
+    public DbSet<JornadaLinea> JornadasLinea => Set<JornadaLinea>();
+    public DbSet<Asignacion> Asignaciones => Set<Asignacion>();
+    public DbSet<UltimaTareaJornada> UltimasTareasJornada => Set<UltimaTareaJornada>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

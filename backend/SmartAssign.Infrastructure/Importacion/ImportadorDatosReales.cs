@@ -174,6 +174,15 @@ public class ImportadorDatosReales(SmartAssignDbContext db) : IImportadorDatosRe
         return ResultadoImportacion.Exito(filasLeidas, importados);
     }
 
+    // 00 §A14/§B6: TipoActividad agrupa puestos que son "la misma tarea
+    // desgastante" (B6) para fn_ViolaNoRepeticion24h. "Girar botellas" es
+    // el ÚNICO caso que A14 confirma con dato real (las tres filas
+    // "Girar botellas 1/2/3" comparten TiempoDeRecup=24) — no se extiende
+    // esta agrupación a otros nombres de puesto por similitud (p. ej.
+    // "Limpieza" tiene 5h en una línea y 48h en otras dos: agrupar por
+    // nombre inventaría una equivalencia que el dato no respalda).
+    private const string ActividadGirarBotellas = "Girar botellas";
+
     public async Task<ResultadoImportacion> ImportarPuestosFijosAsync(Stream archivoExcel, CancellationToken ct = default)
     {
         using var libro = new XLWorkbook(archivoExcel);
@@ -240,9 +249,26 @@ public class ImportadorDatosReales(SmartAssignDbContext db) : IImportadorDatosRe
         if (errores.Count > 0)
             return ResultadoImportacion.Rechazo(filasLeidas, errores);
 
+        bool EsGirarBotellas(Puesto p) => p.NombrePuesto.StartsWith(ActividadGirarBotellas, StringComparison.OrdinalIgnoreCase);
+
+        short? tipoActividadGirarBotellasId = null;
+        if (candidatos.Exists(EsGirarBotellas))
+        {
+            var tipoActividad = await db.TiposActividad.SingleOrDefaultAsync(t => t.Nombre == ActividadGirarBotellas, ct);
+            if (tipoActividad is null)
+            {
+                tipoActividad = new TipoActividad { Nombre = ActividadGirarBotellas };
+                db.TiposActividad.Add(tipoActividad);
+                await db.SaveChangesAsync(ct);
+            }
+            tipoActividadGirarBotellasId = tipoActividad.Id;
+        }
+
         var importados = 0;
         foreach (var candidato in candidatos)
         {
+            candidato.TipoActividadId = EsGirarBotellas(candidato) ? tipoActividadGirarBotellasId : null;
+
             var existente = await db.Puestos.SingleOrDefaultAsync(p => p.LineaId == candidato.LineaId && p.Codigo == candidato.Codigo, ct);
             if (existente is null)
             {
@@ -256,6 +282,7 @@ public class ImportadorDatosReales(SmartAssignDbContext db) : IImportadorDatosRe
                 existente.SexoPreferente = candidato.SexoPreferente;
                 existente.HorasEnPuesto = candidato.HorasEnPuesto;
                 existente.HorasRecuperacion = candidato.HorasRecuperacion;
+                existente.TipoActividadId = candidato.TipoActividadId;
             }
             importados++;
         }
