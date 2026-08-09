@@ -129,7 +129,7 @@ El anexo no prescribe framework de servidor. La evaluación:
 | **Identificación de personal** | QR del gafete, que codifica el número de ficha *(§12.2, E1)* |
 | **Alta del dispositivo** | QR con la URL del servidor que muestra el Coordinador *(F3)* |
 
-> Reutilizar el escáner para la configuración inicial significa **cero tecleo** en el único momento en que un supervisor con guantes tendría que escribir una URL a mano.
+> Reutilizar el escáner para la configuración inicial significa **cero tecleo** en el único momento en que un supervisor tendría que escribir una URL a mano, de pie y con un teléfono nuevo.
 
 ---
 
@@ -658,7 +658,7 @@ Es la capa que este producto necesita y que una pirámide estándar no contempla
 
 **Arquitectura** — `Relevos` no referencia prioridad *(A9)*; `Domain` no referencia infraestructura; ningún host de red distinto del servidor de planta *(§12.1)*.
 
-**Android** — casos de uso puros; interfaz con Compose Test; **la app completa en escala de grises** *(§12.2)*; zonas de toque ≥ 56 dp *(§12.3)*; contraste medido *(§12.3)*.
+**Android** — casos de uso puros; interfaz con Compose Test; **la app completa en escala de grises** *(§12.2)*; zonas de toque ≥ 48 dp y acción primaria ≥ 64 dp *(A11)*; contraste medido *(§12.3)*.
 
 **E2E** — turno completo: planificación → arranque → llenado → fatiga → relevo en cadena → paro → cierre de lote → cierre de turno.
 
@@ -739,7 +739,7 @@ BACKEND
 ANDROID
   compilar → pruebas unitarias → lint
   → pruebas instrumentadas
-  → pruebas de accesibilidad (toque 56 dp, contraste, escala de grises)
+  → pruebas de accesibilidad (toque 48 dp, contraste AAA, escala de grises)
   → ensamblar release firmado
   → publicar al canal de distribución
 

@@ -42,7 +42,7 @@ Versión 1.0 · 2026-08-08
                  en la red de planta."
 ```
 
-> **Cero tecleo, a propósito** *(§12.3)*. Escribir una dirección con guantes, de pie, es exactamente el tipo de fricción que hace que alguien pida ayuda o lo deje a medias. El escáner ya existe para los gafetes *(E1)*: reutilizarlo aquí no cuesta nada y elimina el único momento en que habría que teclear.
+> **Cero tecleo, a propósito** *(§12.3)*. Escribir una dirección de pie, con una mano, es exactamente el tipo de fricción que hace que alguien pida ayuda o lo deje a medias. El escáner ya existe para los gafetes *(E1)*: reutilizarlo aquí no cuesta nada y elimina el único momento en que habría que teclear.
 >
 > El Coordinador genera ese QR desde `[Datos maestros] → [Alta de dispositivo]`.
 

@@ -77,7 +77,7 @@ El sistema tiene **exactamente dos roles**, con alcances opuestos *(Parte II)*.
 |---|---|
 | **Cuántos** | Uno por línea activa |
 | **Alcance** | **Exclusivamente su línea** |
-| **Contexto de uso** | De pie, con guantes, con una mano, moviéndose por la planta, bajo iluminación industrial variable *(§12.3)* |
+| **Contexto de uso** | De pie, con una mano, moviéndose por la planta, bajo iluminación industrial variable *(§12.3, A11)* |
 | **Qué hace** | Llena sus puestos rotativos, vigila fatiga, pide y recibe relevos, registra paros y desperdicio, cierra su turno |
 | **Su momento crítico** | El arranque: recoger a su grupo y colocarlo antes de que la ventana se cierre *(§8.4)* |
 | **Lo que nunca puede** | Ver ni tocar puestos ni personal de otras líneas. **El aislamiento es total y deliberado** *(§2.2)* |
@@ -301,7 +301,7 @@ Escenario: Los rotativos no se tocan
 ## 4.2 Épica B — Llenado de línea
 
 ### HU-B1 · Registrar un operario en un puesto rotativo
-> **Como** Supervisor, **quiero** registrar a un operario escaneando su gafete, **para** colocar a mi gente rápido sin escribir con guantes. *(§2.2.2, §12.2)*
+> **Como** Supervisor, **quiero** registrar a un operario escaneando su gafete, **para** colocar a mi gente rápido sin teclear a pie de línea. *(§2.2.2, §12.2)*
 
 ```gherkin
 Escenario: Registro con confirmación de identidad
@@ -916,7 +916,7 @@ Escenario: El sistema no miente sobre lo que no entregó
 ```
 
 ### HU-I2 · Poner en marcha un teléfono sin teclear nada
-> **Como** Supervisor, **quiero** dejar mi teléfono listo escaneando un código, **para** no tener que escribir una dirección con guantes. *(F3)*
+> **Como** Supervisor, **quiero** dejar mi teléfono listo escaneando un código, **para** no tener que teclear una dirección de pie y con una mano. *(F3)*
 
 ```gherkin
 Escenario: Alta por QR

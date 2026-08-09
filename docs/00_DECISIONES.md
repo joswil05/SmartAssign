@@ -173,6 +173,35 @@ Son **tres mecanismos distintos**. La extracción inversa no es parte del motor 
 
 *Impacta:* 05, 04, 06.
 
+## A11 · No se opera con guantes — 🟢 Cerrada — cliente
+
+> *"Ignora esa instrucción de los guantes en los supervisores y coordinadores, eso no es importante."*
+
+**Corrige §12.3**, que decía: *"Se opera con guantes, con una mano, de pie, en movimiento."*
+
+### Qué deja de aplicar
+
+| Antes | Ahora |
+|---|---|
+| Zona de toque mínima **56 dp**, justificada por la imprecisión del guante | **48 dp** — mínimo estándar de Android |
+| Separación mínima entre zonas de toque **12 dp** | **8 dp** |
+| Prueba de aceptación con guante de trabajo real | **Se elimina** |
+
+### Qué SIGUE aplicando — el resto del §12.3 no se tocó
+
+El cliente descartó los guantes, **no** las demás condiciones de uso. Siguen vigentes y siguen gobernando el diseño:
+
+- **Una mano.** Las acciones frecuentes siguen al alcance del pulgar, la acción primaria sigue en la barra inferior, el retorno sigue duplicado con gesto.
+- **De pie y en movimiento.** Los tamaños siguen por encima de lo que usaría una app de escritorio: se toca sin mirar fijamente.
+- **Iluminación industrial variable, brillo parcial, protector rayado.** El contraste **AAA** se mantiene entero. Nada de esto dependía de los guantes.
+- **Nunca solo color** *(§12.2)*. Intacto.
+
+> **Por qué se conservan 48 dp y no se baja más:** el mínimo de Android ya asume dedo desnudo. Lo que no asume es que el usuario esté caminando por una planta mirando otra cosa. Bajar de ahí empezaría a producir toques fallidos en operaciones que **no son repetibles sin consecuencia** *(§12.4)*: se piden dos relevos, se despacha dos veces.
+>
+> **Y la acción primaria se queda en 64 dp** — no por el guante, sino porque es la que más se usa y la que menos puede fallar.
+
+*Impacta:* 03 (§1, §2.3, §3.5, §5.1), 05 (pruebas de accesibilidad), 06 (criterio de salida de F12), 01 (contexto de uso).
+
 ## A9b · Vigencia del anexo de arquitectura — 🟡 Supuesto declarado
 
 El anexo se declara complementario a la v3.0 y la especificación vigente es la v3.3. **Se procede asumiendo que sigue vigente**: solo prescribe plataforma (Android nativo, SQL Server, API intermedia obligatoria) y nada de eso fue tocado entre v3.0 y v3.3.
@@ -720,7 +749,7 @@ Ninguna fuente decía nada. Se define:
 - El teléfono se trata como **compartido por línea**. La línea viaja con el **usuario**, nunca con el dispositivo (§2.3).
 - El PIN **nunca** abre la sesión de otro usuario.
 
-> **Por qué el PIN:** teclear una contraseña completa con guantes, de pie y en movimiento (§12.3) es irreal. Sin PIN, el comportamiento inevitable es dejar la sesión abierta indefinidamente, que es peor para la seguridad que el PIN.
+> **Por qué el PIN:** teclear una contraseña completa de pie, en movimiento y con una mano (§12.3) es irreal. Sin PIN, el comportamiento inevitable es dejar la sesión abierta indefinidamente, que es peor para la seguridad que el PIN.
 
 *Impacta:* 04, 05, 02, 03.
 
@@ -774,7 +803,7 @@ Distribución del APK: **autoalojada en el propio servidor de planta**, con veri
 |---|---|---|---|
 | **E3** Servidor | 🔴 Abierta | Windows Server on-premise + SQL Server 2019 o superior. | Si permiten Linux o contenedores, la elección de stack no cambia; solo el empaquetado. |
 | **E4** Dispositivos | 🔴 Abierta | `minSdk 26` (Android 8.0), `targetSdk` actual. | Solo ajusta el piso de compatibilidad. **Ya no afecta a las notificaciones**: FCM funciona desde Android 4 y no depende del servicio en primer plano. |
-| **E5** Red | 🔴 Abierta | Wi-Fi interno de planta. | ⚠ **Ahora importa más que antes:** FCM necesita **salida a internet** desde los teléfonos. Si la Wi-Fi de planta está completamente aislada, hay que abrir salida hacia los servidores de FCM o volver a una solución interna. **Confirmar.** |
+| ~~**E5** Red~~ | 🟢 **Cerrada — cliente** | **Los teléfonos tienen conexión a internet.** La arquitectura de notificaciones de D5 (FCM) es viable sin reservas. | — |
 | **E7** Línea base de KPIs | 🔴 Abierta | No existe medición previa (§1.1). KPIs propuestos con línea base *a establecer en las dos primeras semanas*. | Si hay cifras actuales, los objetivos del PRD pasan a ser metas verificables desde el día uno. |
 | **A5b** Donante L4 | 🔴 Abierta | L4 se excluye de la extracción inversa **por ser la solicitante** en el ejemplo, no de forma permanente. | Si nunca puede ser donante, la derivación de A5 necesita una exclusión fija adicional. |
 | **A7-orig** Liderazgo | 🔴 Abierta | Propuesta A7b: salta la matriz de categoría por acto deliberado de dos pasos con justificación, **nunca** las médicas. | Si no debe saltarla, el §4.1 queda sin vía de aplicación en déficit crítico. |
@@ -837,7 +866,7 @@ Infraestructura nueva total: un servicio en un servidor.
 | **Play Store / Firebase App Distribution** | No se usan |
 | **Un APK para los dos roles** | Sí. El rol sale del inicio de sesión, no de una compilación distinta |
 
-> **El alta por QR aprovecha algo que la app ya tiene que saber hacer.** El escáner existe para los gafetes *(E1)*; usarlo también para la configuración inicial significa **cero tecleo** en el momento en que un supervisor con guantes tendría que escribir una URL. Es la misma capacidad, dos usos.
+> **El alta por QR aprovecha algo que la app ya tiene que saber hacer.** El escáner existe para los gafetes *(E1)*; usarlo también para la configuración inicial significa **cero tecleo** en el único momento en que un supervisor tendría que escribir una URL de pie y con una mano. Es la misma capacidad, dos usos.
 
 **Compatibilidad de versiones** *(Anexo §3)*: distintas versiones conviven mientras la API mantenga compatibilidad. **No se fuerza a que todos los dispositivos actualicen el mismo día.**
 
@@ -864,12 +893,14 @@ Infraestructura nueva total: un servicio en un servidor.
 
 | Bloque | Cerradas | Supuestos | Abiertas |
 |---|---|---|---|
-| A · Correcciones a la fuente | 10 | 1 | 2 (A5b, A7-orig) |
+| A · Correcciones a la fuente | 11 | 1 | 2 (A5b, A7-orig) |
 | B · Motores | 12 | — | — |
 | C · Flujos y estados | 15 | — | — |
 | D · Seguridad | 7 | 1 | — |
-| E · Entorno | 3 | — | 4 |
+| E · Entorno | 4 | — | 3 |
 | F · Arquitectura y despliegue | 4 | — | — |
-| **Total** | **51** | **2** | **6** |
+| **Total** | **53** | **2** | **5** |
 
-**Ninguna pendiente bloquea ya la construcción.** La más relevante es **E5**: FCM necesita salida a internet desde los teléfonos.
+**Ninguna pendiente bloquea la construcción.** Las tres abiertas de entorno (E3 servidor, E4 dispositivos, E7 línea base) se resuelven con un supuesto declarado y solo ajustan detalles de empaquetado o medición.
+
+> **Lo único que está en el camino crítico y no es software: imprimir los gafetes con QR** *(E1)*.

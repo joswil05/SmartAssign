@@ -103,13 +103,14 @@ Versión 1.0 · 2026-08-09
 | Dependencia | Bloquea | Cuándo hace falta |
 |---|---|---|
 | 🔴 **Gafetes impresos con QR** *(E1)* | Pruebas de campo de F4 | **Es una tarea física, no de software.** Diseño de etiqueta, impresión y distribución a ~160 personas tiene plazo propio y **no lo resuelve el equipo de desarrollo**. Hay que arrancarlo ya |
-| ⚠ **E5 — salida a internet** | F10 | **Antes de empezar F10.** FCM necesita que los teléfonos alcancen los servidores de Google. Si la Wi-Fi de planta está aislada, hay que abrir salida o volver a una solución interna |
 | Umbrales de fatiga *(A4)* | Calibración, **no construcción** | F5 se construye con umbrales configurables vacíos. Los valores llegan con el piloto |
 | Horarios de turno *(C6)* | F4 | Dato de configuración, no de código |
 | ⚠ E3, E4 | F0 (empaquetado) | Antes del primer despliegue a preproducción |
 | ⚠ E7 — KPIs | Medición | No bloquea construcción |
 
-> **Ya no bloquean nada:** E1 quedó cerrada (QR) y E2 desapareció como dependencia — la decisión de D5 eliminó el requisito de MDM. Lo único que quedó en su lugar es una dependencia **física**: imprimir los gafetes.
+> **Ya no bloquean nada:** E1 cerrada (QR), E2 desaparecida (D5 eliminó el requisito de MDM) y **E5 confirmada — los teléfonos tienen internet**, así que FCM es viable sin reservas.
+>
+> **La única dependencia que queda en el camino crítico no es de software: imprimir los gafetes.**
 
 ---
 
@@ -282,7 +283,7 @@ Cada fase declara: **entra** (qué necesita) · **sale** (entregable) · **se ve
 
 | | |
 |---|---|
-| **Entra** | F9 · ⚠ **E5 confirmado** (salida a internet para FCM) |
+| **Entra** | F9 |
 | **Sale** | SignalR con grupos por alcance · eventos · **FCM como campana vacía** · descarga del contenido real desde el servidor · **acuse y escalado** · panel *"supervisor no localizable"* |
 | **Se verifica con** | Un supervisor **con la app cerrada** recibe la notificación de un tránsito entrante; y una notificación crítica sin acuse aparece escalada en el panel del Coordinador |
 | **No incluye** | — |
@@ -326,7 +327,7 @@ Cada fase declara: **entra** (qué necesita) · **sale** (entregable) · **se ve
 - ✅ Cero violaciones médicas en la auditoría del piloto.
 - ✅ Cero accesos fuera de alcance.
 - ✅ Latencias dentro de presupuesto *(05 §3.4)*.
-- ✅ Zonas de toque ≥ 56 dp, contraste AAA, **app operable en escala de grises**.
+- ✅ Zonas de toque ≥ 48 dp, acción primaria ≥ 64 dp, contraste AAA, **app operable en escala de grises** *(A11)*.
 - ✅ Suite de reglas de seguridad **completamente en verde**.
 
 ---
@@ -601,7 +602,6 @@ Antes del lanzamiento completo:
 | Riesgo | Impacto | Mitigación |
 |---|---|---|
 | **Gafetes sin imprimir a tiempo** | Bloquea las pruebas de campo de F4 y el piloto | **Arrancar la impresión ya.** Es tarea física con plazo propio, ajena al desarrollo. Especificación en [00 §E1](00_DECISIONES.md) |
-| **Wi-Fi de planta sin salida a internet** *(E5)* | FCM no entrega — bloquea F10 | Confirmarlo antes de F10. Si está aislada: abrir salida hacia FCM o volver a una solución interna |
 | **Alguien "mejora" la notificación añadiendo el nombre** | Sacaría datos de personal hacia un tercero | Prueba que inspecciona la carga útil de FCM y falla el build si aparece cualquier campo de negocio |
 | Umbrales sin calibrar | F5 y F7 se prueban con valores provisionales | Configurables desde el diseño. Se calibran en el piloto |
 | El aislamiento se relaja "temporalmente" para depurar | Fuga de datos médicos | La suite de seguridad es bloqueante en cada PR, no solo antes de producción |
@@ -625,7 +625,7 @@ F6  Movimiento ........................ tránsito, reserva, caducidad
 F7  Relevos ........................... requiere F5 + F6
 F8  Extracción inversa y C15 .......... excepciones al flujo normal
 F9  Contingencias y estadística ....... paros, lotes, eficiencia
-F10 Tiempo real y notificaciones ...... SignalR + FCM campana vacía    [⚠E5]
+F10 Tiempo real y notificaciones ...... SignalR + FCM campana vacía
 F11 Sin conexión ...................... caché cifrada, bloqueo defensivo
 F12 Cierre, histórico, piloto ......... criterio de lanzamiento
 ```

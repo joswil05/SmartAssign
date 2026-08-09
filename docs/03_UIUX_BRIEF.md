@@ -1,9 +1,9 @@
 # SmartAssign — UI/UX Design Brief
 
-**Sistema de diseño, componentes, accesibilidad y layout para una app que se usa con guantes.**
+**Sistema de diseño, componentes, accesibilidad y layout para una app que se usa de pie y en movimiento.**
 Versión 1.0 · 2026-08-09
 
-> **De dónde parte este documento.** No de una tendencia visual, sino de las condiciones de uso reales que describe §12.3: **guantes, una mano, de pie, en movimiento, bajo iluminación industrial variable, con la pantalla a brillo parcial y el protector rayado**. Cada decisión de abajo se justifica contra esa realidad o contra una regla explícita de la especificación.
+> **De dónde parte este documento.** No de una tendencia visual, sino de las condiciones de uso reales que describe §12.3: **una mano, de pie, en movimiento, bajo iluminación industrial variable, con la pantalla a brillo parcial y el protector rayado**. El uso con guantes quedó descartado por el cliente *(A11)*; el resto del §12.3 sigue íntegro. Cada decisión de abajo se justifica contra esa realidad o contra una regla explícita de la especificación.
 >
 > **La micro-copia del §12.5 es literal y no se reinventa.** Está transcrita en §7 de este documento marcada como intocable.
 
@@ -17,7 +17,7 @@ Cinco principios, todos derivados de la fuente. Cuando dos decisiones visuales c
 |---|---|---|---|
 | **1** | **El sistema nunca miente** | §1.3, §12.4 | Cargando ≠ vacío ≠ fuera de operación ≠ error. Cuatro tratamientos visuales distintos, siempre. |
 | **2** | **Legible en el peor caso, no en el mejor** | §12.3 | El contraste se valida con brillo parcial y mica rayada, no con la pantalla nueva en interiores. |
-| **3** | **El dedo es gordo y lleva guante** | §12.3 | Zonas de toque generosas, separadas, tolerantes a imprecisión. |
+| **3** | **Se toca sin mirar fijamente** | §12.3, A11 | De pie y en movimiento: zonas de toque holgadas y separadas, aunque el dedo vaya desnudo. |
 | **4** | **Nunca solo color** | §12.2 | Todo estado se comunica con **texto + forma + color**. El color es el tercer canal, nunca el único. |
 | **5** | **La acción frecuente vive bajo el pulgar** | §12.3 | Las acciones críticas van en el tercio inferior. La información va arriba. |
 
@@ -115,11 +115,11 @@ Escala base **4 dp**.
 | `space.md` | 16 dp | Padding interno de tarjeta |
 | `space.lg` | 24 dp | Entre bloques |
 | `space.xl` | 32 dp | Margen superior de sección |
-| `space.touch` | **12 dp** | **Separación mínima entre dos zonas de toque** |
+| `space.touch` | **8 dp** | **Separación mínima entre dos zonas de toque** |
 | `radius.sm` / `md` / `lg` / `pill` | 8 / 12 / 20 / 999 dp | Chip / tarjeta / hoja / badge |
 | `elevation.0/1/2/3` | 0 / 2 / 6 / 12 dp | Base / tarjeta / hoja / modal |
 
-> **`space.touch` es una regla, no una sugerencia** *(§12.3)*: dos acciones destructivas o irreversibles nunca quedan a menos de 12 dp una de otra. Con guante, la imprecisión de toque ronda los 10 dp.
+> **`space.touch` es una regla, no una sugerencia** *(§12.3, A11)*: dos acciones destructivas o irreversibles nunca quedan a menos de 8 dp una de otra. Se toca caminando y mirando la línea, no la pantalla.
 
 ---
 
@@ -241,7 +241,7 @@ Estados: `default` · `pressed` (escala 0.97 + oscurecido) · `disabled` (45 % +
 ## 3.5 Campo de búsqueda
 
 - Altura **64 dp**, texto `type.body`.
-- **Teclado numérico por defecto** — la ficha es el identificador que más se teclea, y con guantes las teclas grandes importan.
+- **Teclado numérico por defecto** — la ficha es el identificador que más se teclea, y las teclas grandes reducen el error al escribir con una mano.
 - Botón de limpiar de **48 dp**.
 - Resultados en tarjetas de persona (§3.2), con los de la propia línea primero *(§12.2)*.
 - Estado vacío: *"Sin resultados para «4821». Revisa el número o busca por nombre."* — nunca una lista en blanco *(§12.4)*.
@@ -364,7 +364,7 @@ Línea discreta bajo la cabecera: `Datos de hace 2 min`.
 
 - **Una columna** en tarjetas de ancho completo. No dos.
 
-> **Por qué una sola columna:** dos columnas duplican la densidad, pero reducen cada zona de toque por debajo de lo tolerable con guante y obligan a abreviar la micro-copia del §12.5 — que es obligatoria. La densidad es menos valiosa que acertar el toque a la primera.
+> **Por qué una sola columna:** dos columnas duplican la densidad, pero obligan a abreviar la micro-copia del §12.5 —que es obligatoria— y reducen la zona de toque justo cuando se está leyendo de pie. La densidad es menos valiosa que acertar el toque a la primera.
 
 - Agrupada por tipo: **fijos primero**, rotativos después. Los fijos gobiernan si la línea puede operar.
 - Dentro de cada grupo, orden fijo por identificador de puesto. **El orden nunca cambia solo**: un puesto que se mueve de sitio entre dos miradas obliga a releer toda la pantalla.
@@ -409,7 +409,7 @@ El Coordinador administra volúmenes que normalmente vivirían en una tabla de e
 
 ### Por qué la proximidad no se dibuja como matriz
 
-Una cuadrícula de 90 celdas en 360 dp da celdas de unos 36 dp: **por debajo del mínimo de 56 dp** de §5.1, imposible de acertar con guante, e ilegible sin zoom.
+Una cuadrícula de 90 celdas en 360 dp da celdas de unos 36 dp: **por debajo del mínimo de 48 dp** de §5.1, e ilegible sin zoom.
 
 Y hay una razón más fuerte que el tamaño: **la proximidad es un grafo dirigido y asimétrico** *(A3)*. Una matriz sugiere visualmente que la celda (L1, L5) y la celda (L5, L1) son la misma cosa, y **no lo son**. Presentarla como diez listas ordenadas —una por línea de origen— refleja el modelo real y hace evidente que cada línea tiene su propio recorrido.
 
@@ -484,13 +484,13 @@ El Coordinador genera el QR con la URL del servidor. Requisitos:
 
 | Elemento | Mínimo | Justificación |
 |---|---|---|
-| **Absoluto, cualquier elemento** | **56 dp** | Por encima del mínimo Android de 48 dp: se opera con guantes *(§12.3)* |
+| **Absoluto, cualquier elemento** | **48 dp** | Mínimo estándar de Android *(A11)* |
 | Acción primaria | 64 dp | Es la que más se usa y la que menos puede fallar |
 | Fila de lista tocable | 72 dp | Se toca en movimiento |
-| Separación entre zonas de toque | 12 dp | La imprecisión con guante ronda los 10 dp |
-| Separación entre acciones destructivas | 24 dp | El doble, porque el error no se deshace |
+| Separación entre zonas de toque | 8 dp | Se toca de pie y en movimiento |
+| Separación entre acciones destructivas | 24 dp | Muy por encima del resto, porque el error no se deshace |
 
-> **56 dp, no 48 dp.** La recomendación estándar de Android asume dedo desnudo y usuario quieto. Aquí no se cumple ninguna de las dos condiciones *(§12.3)*.
+> **48 dp de piso, 64 dp en la acción primaria** *(A11)*. El cliente descartó el uso con guantes, así que el piso vuelve al mínimo estándar de Android. Lo que **no** se relaja es la acción primaria: sigue en 64 dp porque es la que más se usa y la que menos puede fallar — estas operaciones no son repetibles sin consecuencia *(§12.4)*.
 
 ## 5.2 Contraste
 
@@ -507,7 +507,6 @@ El Coordinador genera el QR con la URL del servidor. Requisitos:
 1. Medición automática de ratios sobre todos los pares de tokens.
 2. Prueba física: teléfono al **40 % de brillo**, con protector usado, bajo la iluminación real de planta.
 3. Prueba bajo **luz directa** — el caso adverso del tema oscuro.
-4. Prueba con **guante de trabajo real**, no con el dedo.
 
 ## 5.3 Nunca solo color *(§12.2)*
 
@@ -668,7 +667,7 @@ Reglas: nombre propio siempre que se hable de una persona · número de puesto y
 | 4.2 Zonas del pulgar | §12.3 |
 | 4.5 Panel Bolsón | C7, C8 |
 | 4.6 Datos maestros en teléfono | §2.1.10, F4, A1, A3 |
-| 5.1 56 dp | §12.3 |
+| 5.1 Zonas de toque 48/64 dp | §12.3, **A11** |
 | 5.2 Contraste AAA | §12.3 |
 | 5.3 Nunca solo color | §12.2 |
 | 5.5 Doble toque | §12.4 |
