@@ -1,0 +1,25 @@
+# Build
+bin/
+obj/
+build/
+.gradle/
+local.properties
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# IDE
+.vs/
+.idea/
+*.user
+.vscode/
+
+# Secretos — nunca en el repositorio (05 TRD §3.5)
+appsettings.*.local.json
+.env
+*.pfx
+
+# SO
+Thumbs.db
+.DS_Store
