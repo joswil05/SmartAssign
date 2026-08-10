@@ -73,4 +73,17 @@ class MallaLineaScreenTest {
 
         compose.onNodeWithText("No hay puestos activos en esta línea.").assertExists()
     }
+
+    @Test
+    fun el_boton_de_escanear_gafete_siempre_esta_disponible_es_la_puerta_de_entrada_al_llenado_real() {
+        // → PC-3 (07 §6): sin este botón no hay forma de llegar al recorrido
+        // de E6.5-E6.8 desde la malla real.
+        val malla = FakeMallaRepositorio().apply {
+            resultado = ResultadoMalla.Ok(listOf(puesto(1, "L4-A01", "fijo", "libre")))
+        }
+
+        compose.setContent { MallaLineaScreen(viewModel = MallaLineaViewModel(sesionConLinea(), malla)) }
+
+        compose.onNodeWithTag("malla-boton-escanear-gafete").assertExists()
+    }
 }

@@ -68,4 +68,8 @@ object RedModule {
     @Provides
     @Singleton
     fun personalApi(retrofit: Retrofit): PersonalApi = retrofit.create(PersonalApi::class.java)
+
+    @Provides
+    @Singleton
+    fun asignacionApi(retrofit: Retrofit): AsignacionApi = retrofit.create(AsignacionApi::class.java)
 }
