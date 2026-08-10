@@ -5,9 +5,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SmartAssign.Api.Endpoints;
 using SmartAssign.Api.Seguridad;
+using SmartAssign.Application.Asignaciones;
 using SmartAssign.Application.Autenticacion;
 using SmartAssign.Application.Seguridad;
 using SmartAssign.Application.Trazabilidad;
+using SmartAssign.Infrastructure.Asignaciones;
 using SmartAssign.Infrastructure.Autenticacion;
 using SmartAssign.Infrastructure.Persistence;
 using SmartAssign.Infrastructure.Seguridad;
@@ -30,6 +32,7 @@ builder.Services.AddScoped<IServicioCredenciales, ServicioCredenciales>();
 builder.Services.AddScoped<IServicioTokens, ServicioTokensJwt>();
 builder.Services.AddScoped<IServicioAutenticacion, ServicioAutenticacion>();
 builder.Services.AddScoped<IRegistradorAuditoria, RegistradorAuditoria>();
+builder.Services.AddScoped<IServicioAsignacion, ServicioAsignacion>();
 
 builder.Services.AddScoped<IContextoSesionActual, ContextoSesionActual>();
 builder.Services.AddScoped<IAlcanceLineaResolver, AlcanceLineaResolver>();
@@ -101,6 +104,7 @@ app.MapAuthEndpoints();
 app.MapLineaEndpoints();
 app.MapServidorEndpoints();
 app.MapPersonalEndpoints();
+app.MapAsignacionEndpoints();
 
 app.Run();
 

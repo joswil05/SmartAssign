@@ -21,7 +21,13 @@ public class RegistradorAuditoria(SmartAssignDbContext db) : IRegistradorAuditor
     {
         var conexion = db.Database.GetDbConnection();
         if (conexion.State != ConnectionState.Open)
-            await conexion.OpenAsync(ct);
+            // db.Database.OpenConnectionAsync(), no conexion.OpenAsync()
+            // directo: este último evita el pipeline de EF y con él
+            // SessionContextConnectionInterceptor (04 §6.3) — inofensivo
+            // aquí porque Auditoria no tiene RLS de fila, pero es el
+            // mismo defecto real que sí rompía sp_SugerirPuesto/
+            // sp_AsignarPersona en E6.8 (ServicioAsignacion).
+            await db.Database.OpenConnectionAsync(ct);
 
         var parametros = new DynamicParameters();
         parametros.Add("usuario_id", usuarioId);
