@@ -151,8 +151,14 @@ public class ExcesoRelativoFatigaTests : IAsyncLifetime
         var excesoAlto = await ExcesoRelativoAsync(puestoUmbralAlto);
 
         excesoBajo.Should().BeGreaterThan(excesoAlto!.Value, "70 min sobre un umbral de 60 es peor que 70 min sobre un umbral de 120");
-        excesoBajo.Should().BeApproximately(116.67m, 0.01m);
-        excesoAlto.Should().BeApproximately(58.33m, 0.01m);
+        // Tolerancia de unos pocos puntos porcentuales: Inicio se marca
+        // con el reloj de C# antes de escribir la fila, pero la función
+        // mide contra SYSUTCDATETIME() al leerla — bajo carga (suite
+        // completa en paralelo, contención real de LocalDB) pueden pasar
+        // uno o dos minutos reales entre ambos instantes. Mismo criterio
+        // de tolerancia que RelojDeFatigaTests con BeInRange.
+        excesoBajo.Should().BeApproximately(116.67m, 6m);
+        excesoAlto.Should().BeApproximately(58.33m, 6m);
     }
 
     [Fact]
@@ -163,7 +169,7 @@ public class ExcesoRelativoFatigaTests : IAsyncLifetime
         var puesto = await CrearPuestoAsync(ctx, horasEnPuesto: 1); // 60 min
         await AsignarDesdeHaceAsync(ctx, puesto, minutosAtras: 60);
 
-        (await ExcesoRelativoAsync(puesto)).Should().BeApproximately(100m, 0.01m);
+        (await ExcesoRelativoAsync(puesto)).Should().BeApproximately(100m, 6m);
     }
 
     [Fact]
@@ -176,7 +182,7 @@ public class ExcesoRelativoFatigaTests : IAsyncLifetime
         var puesto = await CrearPuestoAsync(ctx, horasEnPuesto: 1); // 60 min
         await AsignarDesdeHaceAsync(ctx, puesto, minutosAtras: 30);
 
-        (await ExcesoRelativoAsync(puesto)).Should().BeApproximately(50m, 0.01m);
+        (await ExcesoRelativoAsync(puesto)).Should().BeApproximately(50m, 6m);
     }
 
     [Fact]
@@ -221,6 +227,6 @@ public class ExcesoRelativoFatigaTests : IAsyncLifetime
         await SetParametroAsync(ctx, "fatiga_sugerido_default_min", "50");
         await AsignarDesdeHaceAsync(ctx, puesto, minutosAtras: 25);
 
-        (await ExcesoRelativoAsync(puesto)).Should().BeApproximately(50m, 0.01m);
+        (await ExcesoRelativoAsync(puesto)).Should().BeApproximately(50m, 6m);
     }
 }
