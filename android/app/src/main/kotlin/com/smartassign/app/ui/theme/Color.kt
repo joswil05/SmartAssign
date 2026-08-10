@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 val BgBase = Color(0xFF0E1116)
 val BgSurface = Color(0xFF171C23)
 val BgSurfaceRaised = Color(0xFF212832)
+val BgOverlay = Color(0xB8000000) // #000000 @ 72% — fondo de modal
 val BorderSubtle = Color(0xFF2C3540)
 val BorderStrong = Color(0xFF455161)
 val TextPrimary = Color(0xFFF4F7FA)
@@ -40,3 +41,5 @@ val ColorAlerta = Color(0xFFD9822B)
 val ColorPeligro = Color(0xFFE5484D)
 val ColorMedico = Color(0xFFB5179E) // exclusivo de restricciones médicas — §7.2, §12.2
 val ColorTransito = Color(0xFF7B5CD6)
+val ColorOfflineFg = Color(0xFF8A6D3B) // banner de sin conexión — texto/icono
+val ColorOfflineBg = Color(0xFF2B2113) // banner de sin conexión — fondo

@@ -1,7 +1,7 @@
 # SmartAssign — Estado de ejecución
 
 **Se lee al empezar cada sesión. Se actualiza al terminar cada UT.**
-Última actualización: 2026-08-10 · UTs completadas: **36 / 95**
+Última actualización: 2026-08-10 · UTs completadas: **37 / 95**
 
 ## Decisiones de esta sesión que no estaban en los documentos
 
@@ -193,9 +193,10 @@
 - **SKU real importado desde la hoja "Programa" (07 §4.1), todo o nada — 22 SKU únicos, deduplicados por `Item`.** `PuestoSKU` real importado desde "Puestos SKU", pero SIN el contrato todo-o-nada del resto de hojas: G4 ya documentaba que esa hoja está deliberadamente incompleta (18 filas, la mayoría sin `Item` verificable). Solo Línea 1 (9 filas, 3 puestos × 3 SKU reales) es completamente verificable contra el catálogo; el resto se omite fila por fila. Un puesto sin ningún SKU verificable NO se crea (se leería como "no depende del SKU", justo lo contrario de lo que dice la hoja de él).
 - **`Turno` sigue sembrada vacía en producción** (00 §C6: horarios son dato de configuración del cliente) — la hoja "Programa" trae códigos de turno (`1T8`, `2T8`, `1T12`, `2T12`) pero ningún reloj concreto, y C6 prohíbe inventar una hora. Las pruebas crean sus propios `Turno` de prueba.
 
-## E6 · App base y llenado *(0/8)* → F4b
+## E6 · App base y llenado *(1/8)* → F4b
 
-- [ ] **E6.1** Sistema de diseño en Compose — LEE: `03 §2`, `00 §A11`
+- [x] **E6.1** Sistema de diseño en Compose — LEE: `03 §2`, `00 §A11`
+  - VERIFICADO: tokens de `03 §2` completados sobre lo que ya traía el esqueleto de E0 (`color.bg.overlay`, el par `color.offline` fondo/primer plano, `type.mono`, `elevation.0/1/2/3`) — todos en `Color.kt`/`Type.kt`/`Dimens.kt`, sin ningún componente de `03 §3` adelantado (eso es E6.4/E6.6). 6 pruebas JVM reales nuevas (`testDebugUnitTest`, sin emulador): contraste AAA (7:1) de texto primario/secundario contra las tres superficies — verificado con la fórmula WCAG contra los valores reales, no solo afirmado en un comentario —, los 5 colores de estado de puesto son únicos entre sí, los 3 niveles de fatiga son únicos entre sí, ningún estilo tipográfico baja de 15 sp, y el piso de zona de toque es 48/8 dp (A11). `assembleDebug` sigue en verde
 - [ ] **E6.2** Los cuatro estados de pantalla — LEE: `03 §3.11`, `§12.4`
 - [ ] **E6.3** Login, PIN, alta de dispositivo por QR — LEE: `02 §1.0`, `02 §1.1`, `00 §F3`
 - [ ] **E6.4** Malla de línea — LEE: `03 §3.1`, `03 §4.3`
@@ -313,3 +314,4 @@
 | 2026-08-09 | H8 resuelto | Cliente confirmó `Femenina`=`Femenino` (tipeo) y que la Línea 6 no tiene más error de captura que el ya visto; calderas/filtros confirmados como Operador A. Nueva decisión G6: el importador repara `SexoPreferente` arrastrado por patrón en vez de rechazar. Reimportado: **98/98 Puestos Fijos reales cargan limpio**. 7 pruebas nuevas/ajustadas — 74/74 pruebas en verde en todo el backend |
 | 2026-08-09 | E4 (8) | **Motor de validación completo — PC-2 lista para validar.** Las 5 funciones de §7.1 + `sp_ValidarAsignacion` con los 7 pasos exactos + DENY sobre `Asignacion`/`Auditoria` + suite médica de 8 caminos. Síntesis de ingeniería entre A12 y B6 para `fn_ViolaNoRepeticion24h` (ver nota abajo). Tablas nuevas: `Parametro`, `JustificacionExcepcion`, `JornadaLinea` (mínima), `Asignacion`, `UltimaTareaJornada` — todas ya especificadas en 04, traídas antes de su etapa porque E4 las necesita para compilar/probar. RLS extendida a `JornadaLinea` (04 §6.3, ya anticipada desde E2). 58 pruebas nuevas — 132/132 en verde en todo el backend |
 | 2026-08-10 | E5 (7) | **Jornada, prioridad y barrido completo.** `Turno` (vacía, C6) + `JornadaLinea` completa · `sp_CambiarPrioridadLinea` (intercambio, B8) · `fn_PuestoFueraDeOperacion`/`fn_EsVacanteCritica`/`fn_SituacionPuesto` (§5.3) · `sp_PlanificarLinea`/`sp_ConfirmarPlanificacion` (rechazo nominal si falta supervisor, sincroniza `Linea.SupervisorActualId`) · `sp_BarridoPuestosFijos` + `sp_ArrancarTurno` (§8.3/§8.4, barrido ANTES de la ventana). G5 cerrada con el cliente a mitad de la etapa (categoria_titular). Importador real extendido: SKU (22, todo o nada) + Puestos SKU (9/18 verificables, 00 §G4). 46 pruebas nuevas — 178/178 en verde en todo el backend |
+| 2026-08-10 | E6.1 (1) | **Arranca E6, primer UT de Android desde E0.** Sistema de diseño de `03 §2` completado sobre el esqueleto de tokens que ya traía E0: `bg.overlay`, par `offline` fg/bg, `type.mono`, `elevation.0-3`. 6 pruebas JVM reales (`testDebugUnitTest`, sin emulador) verifican contraste AAA real (fórmula WCAG, no solo el comentario), unicidad de colores de estado/fatiga, piso tipográfico de 15 sp y zonas de toque de A11. `assembleDebug` sigue en verde |

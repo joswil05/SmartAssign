@@ -33,3 +33,10 @@ object Radius {
     val lg = 20.dp
     val pill = 999.dp
 }
+
+object Elevation {
+    val nivel0 = 0.dp  // base
+    val nivel1 = 2.dp  // tarjeta
+    val nivel2 = 6.dp  // hoja
+    val nivel3 = 12.dp // modal
+}
