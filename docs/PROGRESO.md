@@ -1,7 +1,7 @@
 # SmartAssign — Estado de ejecución
 
 **Se lee al empezar cada sesión. Se actualiza al terminar cada UT.**
-Última actualización: 2026-08-10 · UTs completadas: **37 / 95**
+Última actualización: 2026-08-10 · UTs completadas: **38 / 95**
 
 ## Decisiones de esta sesión que no estaban en los documentos
 
@@ -193,11 +193,12 @@
 - **SKU real importado desde la hoja "Programa" (07 §4.1), todo o nada — 22 SKU únicos, deduplicados por `Item`.** `PuestoSKU` real importado desde "Puestos SKU", pero SIN el contrato todo-o-nada del resto de hojas: G4 ya documentaba que esa hoja está deliberadamente incompleta (18 filas, la mayoría sin `Item` verificable). Solo Línea 1 (9 filas, 3 puestos × 3 SKU reales) es completamente verificable contra el catálogo; el resto se omite fila por fila. Un puesto sin ningún SKU verificable NO se crea (se leería como "no depende del SKU", justo lo contrario de lo que dice la hoja de él).
 - **`Turno` sigue sembrada vacía en producción** (00 §C6: horarios son dato de configuración del cliente) — la hoja "Programa" trae códigos de turno (`1T8`, `2T8`, `1T12`, `2T12`) pero ningún reloj concreto, y C6 prohíbe inventar una hora. Las pruebas crean sus propios `Turno` de prueba.
 
-## E6 · App base y llenado *(1/8)* → F4b
+## E6 · App base y llenado *(2/8)* → F4b
 
 - [x] **E6.1** Sistema de diseño en Compose — LEE: `03 §2`, `00 §A11`
   - VERIFICADO: tokens de `03 §2` completados sobre lo que ya traía el esqueleto de E0 (`color.bg.overlay`, el par `color.offline` fondo/primer plano, `type.mono`, `elevation.0/1/2/3`) — todos en `Color.kt`/`Type.kt`/`Dimens.kt`, sin ningún componente de `03 §3` adelantado (eso es E6.4/E6.6). 6 pruebas JVM reales nuevas (`testDebugUnitTest`, sin emulador): contraste AAA (7:1) de texto primario/secundario contra las tres superficies — verificado con la fórmula WCAG contra los valores reales, no solo afirmado en un comentario —, los 5 colores de estado de puesto son únicos entre sí, los 3 niveles de fatiga son únicos entre sí, ningún estilo tipográfico baja de 15 sp, y el piso de zona de toque es 48/8 dp (A11). `assembleDebug` sigue en verde
-- [ ] **E6.2** Los cuatro estados de pantalla — LEE: `03 §3.11`, `§12.4`
+- [x] **E6.2** Los cuatro estados de pantalla — LEE: `03 §3.11`, `§12.4`
+  - VERIFICADO: `EstadoPantalla<T>` (sealed interface: `Cargando`/`Listo`/`VacioLegitimo`/`FueraDeOperacion`/`Error`) + `PantallaConEstado` — `when` exhaustivo, sin rama de respaldo tipo spinner genérico. 5 pruebas de Compose **reales, con emulador** (`connectedDebugAndroidTest`, no Robolectric): cargando muestra el esqueleto del llamador y nada más, listo muestra el contenido real, vacío legítimo lleva mensaje + siguiente paso, fuera de operación no se confunde con vacío ni con error, error muestra causa+acción concreta y nunca un código técnico. Primer uso real del emulator `Medium_Phone_API_36.1` de este proyecto
 - [ ] **E6.3** Login, PIN, alta de dispositivo por QR — LEE: `02 §1.0`, `02 §1.1`, `00 §F3`
 - [ ] **E6.4** Malla de línea — LEE: `03 §3.1`, `03 §4.3`
 - [ ] **E6.5** Escáner QR con ML Kit en dispositivo — LEE: `00 §E1`, `§12.1`
@@ -206,6 +207,13 @@
 - [ ] **E6.8** Concurrencia: bloqueo determinista + idempotencia — LEE: `04 §7.3`, `00 §B1`
 
 > **→ PC-3** · **El punto de control más importante.** Un supervisor llena su línea desde un teléfono real.
+
+### Decisiones de ingeniería de la etapa E6 en curso (delegadas, no de negocio — R2 no aplica)
+
+- **`espresso-core`/`androidx.test.ext:junit` subidos de 3.6.1/1.2.1 a 3.7.0/1.3.0.** El primer intento de correr pruebas reales de Compose contra el emulador (`Medium_Phone_API_36.1`, API 36) falló con `NoSuchMethodException: android.hardware.input.InputManager.getInstance` — Espresso 3.6.1 usa reflexión contra una firma de `InputManager` que la plataforma API 36 ya no tiene. Es una incompatibilidad de la librería de pruebas con la versión de Android del emulador disponible, no del código de la app; las versiones más nuevas del catálogo de Google Maven ya la corrigen.
+- **`material-icons-extended` añadida.** Los tratamientos de "vacío legítimo" y "error" (§3.11) exigen icono; el set `material-icons-core` que trae `material3` por defecto no incluye símbolos como "bandeja vacía" o "error". Es una dependencia de compilación normal de AndroidX (sin descarga en tiempo de ejecución) — no viola §12.1.
+- **`EstadoPantalla<T>` se construye como sealed interface con 5 casos, no 4.** El brief nombra "los cuatro estados de pantalla" (cargando/vacío/fuera de operación/error) pero ninguna pantalla real puede dibujarse sin un quinto caso para "ya cargó, aquí está el contenido" — se agregó `Listo<T>` junto a los otros cuatro para que el `when` de `PantallaConEstado` sea exhaustivo en el compilador, sin un `else` que pudiera esconder un estado sin tratamiento.
+- **Primer uso real de un emulador Android en este proyecto.** E0-E5 solo habían verificado Android con `gradlew assembleDebug` (compila) — nunca con una prueba de Compose corriendo de verdad. Desde E6.2 en adelante, las pruebas de UI corren contra `Medium_Phone_API_36.1` igual que el backend corre contra LocalDB real: nada de Robolectric ni mocks del framework de Compose.
 
 ## E7 · Fatiga *(0/4)* → F5
 
@@ -315,3 +323,4 @@
 | 2026-08-09 | E4 (8) | **Motor de validación completo — PC-2 lista para validar.** Las 5 funciones de §7.1 + `sp_ValidarAsignacion` con los 7 pasos exactos + DENY sobre `Asignacion`/`Auditoria` + suite médica de 8 caminos. Síntesis de ingeniería entre A12 y B6 para `fn_ViolaNoRepeticion24h` (ver nota abajo). Tablas nuevas: `Parametro`, `JustificacionExcepcion`, `JornadaLinea` (mínima), `Asignacion`, `UltimaTareaJornada` — todas ya especificadas en 04, traídas antes de su etapa porque E4 las necesita para compilar/probar. RLS extendida a `JornadaLinea` (04 §6.3, ya anticipada desde E2). 58 pruebas nuevas — 132/132 en verde en todo el backend |
 | 2026-08-10 | E5 (7) | **Jornada, prioridad y barrido completo.** `Turno` (vacía, C6) + `JornadaLinea` completa · `sp_CambiarPrioridadLinea` (intercambio, B8) · `fn_PuestoFueraDeOperacion`/`fn_EsVacanteCritica`/`fn_SituacionPuesto` (§5.3) · `sp_PlanificarLinea`/`sp_ConfirmarPlanificacion` (rechazo nominal si falta supervisor, sincroniza `Linea.SupervisorActualId`) · `sp_BarridoPuestosFijos` + `sp_ArrancarTurno` (§8.3/§8.4, barrido ANTES de la ventana). G5 cerrada con el cliente a mitad de la etapa (categoria_titular). Importador real extendido: SKU (22, todo o nada) + Puestos SKU (9/18 verificables, 00 §G4). 46 pruebas nuevas — 178/178 en verde en todo el backend |
 | 2026-08-10 | E6.1 (1) | **Arranca E6, primer UT de Android desde E0.** Sistema de diseño de `03 §2` completado sobre el esqueleto de tokens que ya traía E0: `bg.overlay`, par `offline` fg/bg, `type.mono`, `elevation.0-3`. 6 pruebas JVM reales (`testDebugUnitTest`, sin emulador) verifican contraste AAA real (fórmula WCAG, no solo el comentario), unicidad de colores de estado/fatiga, piso tipográfico de 15 sp y zonas de toque de A11. `assembleDebug` sigue en verde |
+| 2026-08-10 | E6.2 (1) | **Primeras pruebas de Compose con emulador real** (`Medium_Phone_API_36.1`). `EstadoPantalla<T>` (5 casos: `Cargando`/`Listo`/`VacioLegitimo`/`FueraDeOperacion`/`Error`) + `PantallaConEstado`, `when` exhaustivo. 5/5 pruebas de Compose reales en verde tras subir `espresso-core`/`androidx.test.ext:junit` (incompatibilidad de reflexión de `InputManager` con API 36 en la versión anterior). `material-icons-extended` añadida |
