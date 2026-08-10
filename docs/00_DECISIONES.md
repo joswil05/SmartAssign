@@ -1014,7 +1014,7 @@ Solo 18 filas, y la mayoría incompletas: 3 SKU de Línea 1 con 3 puestos cada u
 
 **Bloquea:** el cambio de SKU y el cálculo de cobertura con datos reales.
 
-## G5 · `categoria_titular` no se puede derivar de `PerfilRequerido` — 🔴 Abierta, no bloqueante
+## G5 · `categoria_titular` no se puede derivar de `PerfilRequerido` — 🟢 Cerrada — cliente
 
 Al construir el importador (etapa E3.6) apareció una segunda incompatibilidad entre el 04 original y el dato real, además de A13: `04 §2.6` exige que todo puesto **fijo** tenga `categoria_titular` (`operador_a`|`operador_c`|`averiero`), pero los 31 puestos fijos reales solo traen `PerfilRequerido`, con estos valores:
 
@@ -1028,9 +1028,19 @@ Al construir el importador (etapa E3.6) apareció una segunda incompatibilidad e
 
 Ninguno de estos mapea limpio a `operador_a` / `operador_c` — "Operador" (19 filas) no dice si es A o C, y "Supervisor"/"Genérico"/"Operador de filtro" no tienen casilla en el vocabulario de tres valores. Inventar la asignación sería fabricar un dato de negocio sin respaldo (regla R2 de 07 §2).
 
-**Resolución para poder importar ya:** se relaja `CK_Puesto_categoria` — ya no exige `categoria_titular` en fijos, solo prohíbe que un rotativo lo tenga (eso sí se mantiene, C12). `categoria_titular` queda `NULL` en los 98 puestos reales importados hasta que el cliente confirme la categorización exacta de sus titulares. `PerfilRequerido` (real, importado tal cual) sigue disponible para lo que sí resuelve por sí solo — la matriz de compatibilidad del §4.2 en la etapa E4.
+**Resolución para poder importar ya (etapa E3):** se relaja `CK_Puesto_categoria` — ya no exige `categoria_titular` en fijos, solo prohíbe que un rotativo lo tenga (eso sí se mantiene, C12). `categoria_titular` quedó `NULL` en los 98 puestos reales importados hasta que el cliente confirmara la categorización exacta de sus titulares. `PerfilRequerido` (real, importado tal cual) siguió disponible para lo que sí resuelve por sí solo — la matriz de compatibilidad del §4.2 en la etapa E4.
 
-**Bloquea (eventualmente):** `sp_BarridoPuestosFijos` (E5.5), que hoy en su diseño depende de conocer la categoría del titular para decidir a quién asignar automáticamente. No bloquea nada de lo construido hasta ahora.
+**Cerrada en la etapa E5 (2026-08-10), cuando `sp_BarridoPuestosFijos` la necesitó de verdad:** el cliente confirmó *"por ahora tómalos a todos esos como si fuese operador A, no hay operadores C ni B por los momentos"*:
+
+| PerfilRequerido | `categoria_titular` resultante |
+|---|---|
+| Averiero (5 filas) | `averiero` — mapeo literal, sin ambigüedad |
+| Operador (19), Genérico (1), Operador de filtro (1) | `operador_a` — confirmado por el cliente |
+| Supervisor (5 filas) | Queda `NULL` a propósito — personal de liderazgo, nunca se asigna automáticamente (§4.1). `sp_BarridoPuestosFijos` excluye estos puestos del barrido en vez de necesitar una categoría inventada para ellos |
+
+El importador (`ImportadorDatosReales.ImportarPuestosFijosAsync`) aplica este mapeo. Reimportado: los 31 puestos fijos reales con `PerfilRequerido` técnico ya tienen `categoria_titular`; los 5 `Supervisor` siguen `NULL`, correctamente.
+
+**Ya no bloquea nada.** `sp_BarridoPuestosFijos` (E5.5) opera con datos reales.
 
 *Impacta:* 04 (`Puesto.categoria_titular`, `CK_Puesto_categoria`), 07 (importador).
 
@@ -1059,9 +1069,9 @@ Al importar contra el archivo real (H8), 9 de las 98 filas de "Puestos Fijos" fa
 | D · Seguridad | 7 | 1 | — |
 | E · Entorno | 4 | — | 3 |
 | F · Arquitectura y despliegue | 4 | — | — |
-| G · Huecos de los datos reales | 4 | — | 2 (G4, G5 — ninguna bloqueante) |
-| **Total** | **60** | **2** | **5** |
+| G · Huecos de los datos reales | 5 | — | 1 (G4, no bloqueante) |
+| **Total** | **61** | **2** | **4** |
 
-**La construcción arranca sin ningún bloqueo.** G1, G2, G3 y G6 quedaron resueltas para poder construir y probar; G4 (puestos por SKU incompletos) se rellena con datos simulados sin necesitar respuesta; G5 (categoría del titular de puestos fijos) se descubrió al importar y no bloquea nada, salvo el barrido automático más adelante (E5.5). Quedan abiertas E3, E4, E7 (entorno, no bloquean), G4 y G5, y A5b/A7-orig ya no aplican — fueron cerradas.
+**La construcción arranca sin ningún bloqueo.** G1, G2, G3, G5 y G6 quedaron resueltas para poder construir y probar; G4 (puestos por SKU incompletos) se rellena con datos simulados sin necesitar respuesta — no bloquea nada de lo construido. Quedan abiertas E3, E4, E7 (entorno, no bloquean) y G4, y A5b/A7-orig ya no aplican — fueron cerradas.
 
 > **En el camino crítico y fuera del software: imprimir los gafetes con QR, y conseguir la categorización real de A/B/C y los datos médicos antes del piloto.**

@@ -88,6 +88,21 @@ public class MotorDeValidacionTests : IAsyncLifetime
         return puesto.Id;
     }
 
+    /// <summary>
+    /// JornadaLinea exige turno_id/dia_operacion desde la etapa E5 (04
+    /// §4.1) — antes de E5 estas pruebas creaban la fila con solo
+    /// linea_id. El valor del turno/día es irrelevante para lo que E4
+    /// prueba aquí (ventana de arranque, orden del SP); solo hace falta
+    /// una fila válida de Turno para satisfacer la FK.
+    /// </summary>
+    private static async Task<byte> CrearTurnoAsync(SmartAssignDbContext ctx)
+    {
+        var turno = new Turno { Nombre = $"T_{Guid.NewGuid():N}"[..10], HoraInicio = new TimeOnly(6, 0), HoraFin = new TimeOnly(14, 0) };
+        ctx.Turnos.Add(turno);
+        await ctx.SaveChangesAsync();
+        return turno.Id;
+    }
+
     private static async Task<int> CrearUsuarioAsync(SmartAssignDbContext ctx, string rol = "coordinador")
     {
         var u = new Usuario
@@ -532,9 +547,11 @@ public class MotorDeValidacionTests : IAsyncLifetime
     {
         await using var ctx = CrearContexto();
         await ComoCoordinadorAsync(ctx);
+        var turno = await CrearTurnoAsync(ctx);
         ctx.JornadasLinea.Add(new JornadaLinea
         {
-            LineaId = 1, ArrancadoEn = DateTime.UtcNow.AddMinutes(-5),
+            LineaId = 1, TurnoId = turno, DiaOperacion = new DateOnly(2026, 1, 1),
+            ArrancadoEn = DateTime.UtcNow.AddMinutes(-5),
             VentanaArranqueFin = DateTime.UtcNow.AddMinutes(10),
         });
         await ctx.SaveChangesAsync();
@@ -552,9 +569,11 @@ public class MotorDeValidacionTests : IAsyncLifetime
     {
         await using var ctx = CrearContexto();
         await ComoCoordinadorAsync(ctx);
+        var turno = await CrearTurnoAsync(ctx);
         ctx.JornadasLinea.Add(new JornadaLinea
         {
-            LineaId = 1, ArrancadoEn = DateTime.UtcNow.AddMinutes(-5),
+            LineaId = 1, TurnoId = turno, DiaOperacion = new DateOnly(2026, 1, 1),
+            ArrancadoEn = DateTime.UtcNow.AddMinutes(-5),
             VentanaArranqueFin = DateTime.UtcNow.AddMinutes(10),
         });
         await ctx.SaveChangesAsync();
@@ -572,9 +591,11 @@ public class MotorDeValidacionTests : IAsyncLifetime
     {
         await using var ctx = CrearContexto();
         await ComoCoordinadorAsync(ctx);
+        var turno = await CrearTurnoAsync(ctx);
         ctx.JornadasLinea.Add(new JornadaLinea
         {
-            LineaId = 1, ArrancadoEn = DateTime.UtcNow.AddMinutes(-30),
+            LineaId = 1, TurnoId = turno, DiaOperacion = new DateOnly(2026, 1, 1),
+            ArrancadoEn = DateTime.UtcNow.AddMinutes(-30),
             VentanaArranqueFin = DateTime.UtcNow.AddMinutes(-15), // ya pasó
         });
         await ctx.SaveChangesAsync();
@@ -610,7 +631,8 @@ public class MotorDeValidacionTests : IAsyncLifetime
         await ComoCoordinadorAsync(ctx);
         var usuario = await CrearUsuarioAsync(ctx);
         var titular = await CrearPersonaAsync(ctx, "operario", situacion: "asignado");
-        var jornada = new JornadaLinea { LineaId = 1 };
+        var turno = await CrearTurnoAsync(ctx);
+        var jornada = new JornadaLinea { LineaId = 1, TurnoId = turno, DiaOperacion = new DateOnly(2026, 1, 1) };
         ctx.JornadasLinea.Add(jornada);
         await ctx.SaveChangesAsync();
         var puesto = await CrearPuestoAsync(ctx, "rotativo");
@@ -715,9 +737,11 @@ public class MotorDeValidacionTests : IAsyncLifetime
             PersonalId = persona, TipoActividadId = tipoActividad.Id, PuestoId = puestoAyer,
             DiaOperacion = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1)), RegistradoEn = DateTime.UtcNow.AddHours(-1),
         });
+        var turno = await CrearTurnoAsync(ctx);
         ctx.JornadasLinea.Add(new JornadaLinea
         {
-            LineaId = 1, ArrancadoEn = DateTime.UtcNow.AddMinutes(-2), VentanaArranqueFin = DateTime.UtcNow.AddMinutes(10),
+            LineaId = 1, TurnoId = turno, DiaOperacion = new DateOnly(2026, 1, 1),
+            ArrancadoEn = DateTime.UtcNow.AddMinutes(-2), VentanaArranqueFin = DateTime.UtcNow.AddMinutes(10),
         });
         await ctx.SaveChangesAsync();
 
@@ -732,9 +756,11 @@ public class MotorDeValidacionTests : IAsyncLifetime
         await using var ctx = CrearContexto();
         await ComoCoordinadorAsync(ctx);
         var usuario = await CrearUsuarioAsync(ctx);
+        var turno = await CrearTurnoAsync(ctx);
         ctx.JornadasLinea.Add(new JornadaLinea
         {
-            LineaId = 1, ArrancadoEn = DateTime.UtcNow.AddMinutes(-2), VentanaArranqueFin = DateTime.UtcNow.AddMinutes(10),
+            LineaId = 1, TurnoId = turno, DiaOperacion = new DateOnly(2026, 1, 1),
+            ArrancadoEn = DateTime.UtcNow.AddMinutes(-2), VentanaArranqueFin = DateTime.UtcNow.AddMinutes(10),
         });
         await ctx.SaveChangesAsync();
         var persona = await CrearPersonaAsync(ctx, "operario", lineaFisicaActual: 9); // no está en L1
@@ -757,7 +783,8 @@ public class MotorDeValidacionTests : IAsyncLifetime
             usuarioId = await CrearUsuarioAsync(ctx);
             personalId = await CrearPersonaAsync(ctx, "operario");
             puestoId = await CrearPuestoAsync(ctx, "rotativo");
-            var jornada = new JornadaLinea { LineaId = 1 };
+            var turno = await CrearTurnoAsync(ctx);
+            var jornada = new JornadaLinea { LineaId = 1, TurnoId = turno, DiaOperacion = new DateOnly(2026, 1, 1) };
             ctx.JornadasLinea.Add(jornada);
             await ctx.SaveChangesAsync();
             jornadaId = jornada.Id;
@@ -927,7 +954,8 @@ public class MotorDeValidacionTests : IAsyncLifetime
             {
                 await ComoCoordinadorAsync(ctx);
                 var (persona, puesto, usuario) = await SembrarEscenarioMedicoAsync(ctx);
-                var jornada = new JornadaLinea { LineaId = 1 };
+                var turno = await CrearTurnoAsync(ctx);
+                var jornada = new JornadaLinea { LineaId = 1, TurnoId = turno, DiaOperacion = new DateOnly(2026, 1, 1) };
                 ctx.JornadasLinea.Add(jornada);
                 await ctx.SaveChangesAsync();
                 personalId = persona; puestoId = puesto; usuarioId = usuario; jornadaId = jornada.Id;

@@ -89,6 +89,13 @@ async Task<int> EjecutarImportacionAsync(string[] argumentos)
     await using (var archivo = File.OpenRead(rutaExcel))
         huboErrores |= Reportar("Personal ausente", await importador.ImportarAusenciasAsync(archivo, usuarioCarga.Id));
 
+    await using (var archivo = File.OpenRead(rutaExcel))
+        huboErrores |= Reportar("Programa (SKU)", await importador.ImportarSkuAsync(archivo));
+
+    // Depende del catálogo SKU recién importado — va después (00 §G4).
+    await using (var archivo = File.OpenRead(rutaExcel))
+        huboErrores |= Reportar("Puestos SKU", await importador.ImportarPuestosSkuAsync(archivo));
+
     return huboErrores ? 1 : 0;
 }
 

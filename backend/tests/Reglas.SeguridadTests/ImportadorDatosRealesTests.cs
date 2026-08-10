@@ -86,6 +86,40 @@ public class ImportadorDatosRealesTests : IAsyncLifetime
         return mem;
     }
 
+    private static MemoryStream LibroPrograma(params object[][] filas)
+    {
+        using var libro = new XLWorkbook();
+        var hoja = libro.Worksheets.Add("Programa");
+        var encabezados = new[] { "OrdenProceso", "FechaProd", "Comentario", "Semana", "Linea", "Item", "Cajas", "Botellas", "TipoBot", "Producto", "Turno", "Velocidad" };
+        for (var i = 0; i < encabezados.Length; i++) hoja.Cell(1, i + 1).Value = encabezados[i];
+
+        for (var f = 0; f < filas.Length; f++)
+            for (var c = 0; c < filas[f].Length; c++)
+                hoja.Cell(f + 2, c + 1).Value = XLCellValue.FromObject(filas[f][c]);
+
+        var mem = new MemoryStream();
+        libro.SaveAs(mem);
+        mem.Position = 0;
+        return mem;
+    }
+
+    private static MemoryStream LibroPuestosSku(params object[][] filas)
+    {
+        using var libro = new XLWorkbook();
+        var hoja = libro.Worksheets.Add("Puestos SKU");
+        var encabezados = new[] { "Linea", "Item", "TipoBot", "IdPuesto", "NombrePuesto", "SexoPreferente", "TiempoEnPuesto", "TiempoDeRecup", "PerfilRequerido" };
+        for (var i = 0; i < encabezados.Length; i++) hoja.Cell(1, i + 1).Value = encabezados[i];
+
+        for (var f = 0; f < filas.Length; f++)
+            for (var c = 0; c < filas[f].Length; c++)
+                hoja.Cell(f + 2, c + 1).Value = XLCellValue.FromObject(filas[f][c]);
+
+        var mem = new MemoryStream();
+        libro.SaveAs(mem);
+        mem.Position = 0;
+        return mem;
+    }
+
     private static MemoryStream LibroAusencias(params object[][] filas)
     {
         using var libro = new XLWorkbook();
@@ -252,6 +286,48 @@ public class ImportadorDatosRealesTests : IAsyncLifetime
         rotativo.HorasRecuperacion.Should().Be((short)24);
     }
 
+    [Theory]
+    [InlineData("Averiero", "averiero")]
+    [InlineData("Operador", "operador_a")]
+    [InlineData("Genérico", "operador_a")]
+    [InlineData("Operador de filtro", "operador_a")]
+    public async Task Repara_categoria_titular_desde_perfil_requerido_confirmado_por_el_cliente(string perfilRequerido, string categoriaEsperada)
+    {
+        // 00 §G5, resuelto (2026-08-09): "por ahora tómalos a todos esos
+        // como si fuese operador A, no hay operadores C ni B por los
+        // momentos" — Averiero es mapeo literal, sin ambigüedad.
+        await using var ctx = CrearContexto();
+        await ComoCoordinadorAsync(ctx);
+        var importador = new ImportadorDatosReales(ctx);
+
+        using var libro = LibroPuestosFijos(
+            new object[] { "L01005", "Puesto de prueba", "Indistinto", "", "", perfilRequerido });
+
+        var resultado = await importador.ImportarPuestosFijosAsync(libro);
+
+        resultado.Exitoso.Should().BeTrue();
+        (await ctx.Puestos.SingleAsync()).CategoriaTitular.Should().Be(categoriaEsperada);
+    }
+
+    [Fact]
+    public async Task Puesto_supervisor_no_recibe_categoria_titular()
+    {
+        // "Supervisor" queda fuera del mapa a propósito: personal de
+        // liderazgo nunca se asigna automáticamente (§4.1) —
+        // sp_BarridoPuestosFijos (E5.5) excluye el puesto en vez de
+        // necesitar una categoría inventada para él.
+        await using var ctx = CrearContexto();
+        await ComoCoordinadorAsync(ctx);
+        var importador = new ImportadorDatosReales(ctx);
+
+        using var libro = LibroPuestosFijos(
+            new object[] { "L01001", "Supervisor", "Indistinto", "", "", "Supervisor" });
+
+        await importador.ImportarPuestosFijosAsync(libro);
+
+        (await ctx.Puestos.SingleAsync()).CategoriaTitular.Should().BeNull();
+    }
+
     [Fact]
     public async Task Rechaza_sexo_preferente_contaminado_sin_patron_de_reparacion_conocido()
     {
@@ -309,6 +385,124 @@ public class ImportadorDatosRealesTests : IAsyncLifetime
 
         resultado.Exitoso.Should().BeTrue();
         (await ctx.Puestos.SingleAsync()).SexoPreferente.Should().Be("Femenino");
+    }
+
+    // ═══ Programa (SKU) — UT-E5.3 ═══
+
+    [Fact]
+    public async Task Importa_catalogo_sku_desde_programa_deduplicando_por_item()
+    {
+        await using var ctx = CrearContexto();
+        var importador = new ImportadorDatosReales(ctx);
+
+        using var libro = LibroPrograma(
+            new object[] { 58204, new DateTime(2026, 5, 26), "", new DateTime(2026, 5, 18), "Linea 1", "850EC0832L35", 200, 2400, "N", "Blanco Reserva EC", "1T8", 500 },
+            // El mismo Item repetido con el mismo Producto/Velocidad no duplica el catálogo.
+            new object[] { 58205, new DateTime(2026, 5, 26), "", new DateTime(2026, 5, 18), "Linea 1", "850EC0832L35", 10, 20, "N", "Blanco Reserva EC", "1T8", 500 },
+            new object[] { 58128, new DateTime(2026, 5, 28), "", new DateTime(2026, 5, 11), "Linea 4", "861NI3274I23", 33300, 799200, "N", "Plata Especial Suave NI", "2T12", 450 });
+
+        var resultado = await importador.ImportarSkuAsync(libro);
+
+        resultado.Exitoso.Should().BeTrue();
+        (await ctx.Skus.CountAsync()).Should().Be(2);
+        var sku = await ctx.Skus.SingleAsync(s => s.Codigo == "850EC0832L35");
+        sku.Descripcion.Should().Be("Blanco Reserva EC");
+        sku.RitmoTeoricoHora.Should().Be(500);
+    }
+
+    [Fact]
+    public async Task Rechaza_el_lote_si_el_mismo_item_trae_velocidad_distinta_en_dos_filas()
+    {
+        await using var ctx = CrearContexto();
+        var importador = new ImportadorDatosReales(ctx);
+
+        using var libro = LibroPrograma(
+            new object[] { 1, new DateTime(2026, 5, 26), "", new DateTime(2026, 5, 18), "Linea 1", "850EC0832L35", 200, 2400, "N", "Blanco Reserva EC", "1T8", 500 },
+            new object[] { 2, new DateTime(2026, 5, 26), "", new DateTime(2026, 5, 18), "Linea 1", "850EC0832L35", 200, 2400, "N", "Blanco Reserva EC", "1T8", 999 });
+
+        var resultado = await importador.ImportarSkuAsync(libro);
+
+        resultado.Exitoso.Should().BeFalse();
+        resultado.Errores.Should().ContainSingle(e => e.Columna == "Item");
+        (await ctx.Skus.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Reimportar_sku_actualiza_ritmo_en_vez_de_duplicar()
+    {
+        await using var ctx = CrearContexto();
+        var importador = new ImportadorDatosReales(ctx);
+
+        using (var primero = LibroPrograma(new object[] { 1, new DateTime(2026, 5, 26), "", new DateTime(2026, 5, 18), "Linea 1", "850EC0832L35", 200, 2400, "N", "Blanco Reserva EC", "1T8", 500 }))
+            await importador.ImportarSkuAsync(primero);
+
+        using (var segundo = LibroPrograma(new object[] { 1, new DateTime(2026, 5, 26), "", new DateTime(2026, 5, 18), "Linea 1", "850EC0832L35", 200, 2400, "N", "Blanco Reserva EC", "1T8", 650 }))
+            (await importador.ImportarSkuAsync(segundo)).Exitoso.Should().BeTrue();
+
+        (await ctx.Skus.CountAsync()).Should().Be(1);
+        (await ctx.Skus.SingleAsync()).RitmoTeoricoHora.Should().Be(650);
+    }
+
+    // ═══ Puestos SKU — UT-E5.3 (00 §G4: hoja deliberadamente incompleta) ═══
+
+    [Fact]
+    public async Task Importa_solo_las_filas_de_puestos_sku_verificables_contra_el_catalogo()
+    {
+        await using var ctx = CrearContexto();
+        await ComoCoordinadorAsync(ctx);
+        var importador = new ImportadorDatosReales(ctx);
+
+        using (var programa = LibroPrograma(
+            new object[] { 1, new DateTime(2026, 5, 26), "", new DateTime(2026, 5, 18), "Linea 1", "850RM4H32L40", 1, 1, "R", "Perfect 10 RM", "1T8", 500 },
+            new object[] { 2, new DateTime(2026, 5, 26), "", new DateTime(2026, 5, 18), "Linea 1", "850SV4H32L40", 1, 1, "R", "Perfect 10 SV", "1T8", 500 }))
+            (await importador.ImportarSkuAsync(programa)).Exitoso.Should().BeTrue();
+
+        using var libro = LibroPuestosSku(
+            // Línea 1: fila completa (con detalle) + fila de continuación (mismo puesto, otro SKU real) — ambas verificables.
+            new object[] { "Linea 1", "850RM4H32L40", "R", "L01S001", "Lampara 1,2", "Femenino", 1, 3, "Indistinto" },
+            new object[] { "Linea 1", "850SV4H32L40", "R", "L01S001", "", "", "", "", "" },
+            // Línea 2: sin Item — no verificable, se omite.
+            new object[] { "Linea 2", "", "R", "L02S001", "", "", "", "", "" },
+            // Línea 4: Item "Alcohol" no es un código real del catálogo — se omite.
+            new object[] { "Linea 4", "Alcohol", "", "L04S001", "Sticker 1", "Femenino", "", "", "" },
+            // Línea 5: sin ningún dato — se omite entero (ni siquiera hay nombre para crear el puesto).
+            new object[] { "Linea 5", "", "", "L05S001", "", "", "", "", "" });
+
+        var resultado = await importador.ImportarPuestosSkuAsync(libro);
+
+        resultado.Exitoso.Should().BeTrue("00 §G4: la hoja incompleta no rechaza el lote, solo omite lo no verificable");
+        resultado.FilasLeidas.Should().Be(5);
+        resultado.FilasImportadas.Should().Be(2, "dos enlaces puesto-SKU verificables (L01S001 con dos SKU reales de Línea 1)");
+
+        (await ctx.Puestos.CountAsync(p => p.Codigo == "L01S001")).Should().Be(1);
+        var puesto = await ctx.Puestos.SingleAsync(p => p.Codigo == "L01S001");
+        puesto.Tipo.Should().Be("rotativo");
+        puesto.NombrePuesto.Should().Be("Lampara 1,2");
+        puesto.CategoriaTitular.Should().BeNull("C12: un rotativo nunca declara categoria_titular");
+        (await ctx.PuestosSku.CountAsync(ps => ps.PuestoId == puesto.Id)).Should().Be(2);
+
+        (await ctx.Puestos.AnyAsync(p => p.Codigo == "L02S001")).Should().BeFalse();
+        (await ctx.Puestos.AnyAsync(p => p.Codigo == "L04S001")).Should().BeFalse();
+        (await ctx.Puestos.AnyAsync(p => p.Codigo == "L05S001")).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Reimportar_puestos_sku_no_duplica_el_enlace()
+    {
+        await using var ctx = CrearContexto();
+        await ComoCoordinadorAsync(ctx);
+        var importador = new ImportadorDatosReales(ctx);
+
+        using (var programa = LibroPrograma(new object[] { 1, new DateTime(2026, 5, 26), "", new DateTime(2026, 5, 18), "Linea 1", "850RM4H32L40", 1, 1, "R", "Perfect 10 RM", "1T8", 500 }))
+            await importador.ImportarSkuAsync(programa);
+
+        var fila = new object[] { "Linea 1", "850RM4H32L40", "R", "L01S001", "Lampara 1,2", "Femenino", 1, 3, "Indistinto" };
+        using (var primero = LibroPuestosSku(fila))
+            await importador.ImportarPuestosSkuAsync(primero);
+        using (var segundo = LibroPuestosSku(fila))
+            (await importador.ImportarPuestosSkuAsync(segundo)).FilasImportadas.Should().Be(0, "el enlace ya existía");
+
+        (await ctx.PuestosSku.CountAsync()).Should().Be(1);
     }
 
     // ═══ Ausencias ═══

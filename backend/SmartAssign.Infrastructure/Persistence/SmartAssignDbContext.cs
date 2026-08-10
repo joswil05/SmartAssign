@@ -38,6 +38,7 @@ public class SmartAssignDbContext : DbContext
     public DbSet<Parametro> Parametros => Set<Parametro>();
     public DbSet<JustificacionExcepcion> JustificacionesExcepcion => Set<JustificacionExcepcion>();
     public DbSet<JornadaLinea> JornadasLinea => Set<JornadaLinea>();
+    public DbSet<Turno> Turnos => Set<Turno>();
     public DbSet<Asignacion> Asignaciones => Set<Asignacion>();
     public DbSet<UltimaTareaJornada> UltimasTareasJornada => Set<UltimaTareaJornada>();
 

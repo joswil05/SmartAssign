@@ -179,7 +179,7 @@ CREATE TABLE PuestoSKU (
 
 > **`ritmo_teorico_hora` nunca es un valor fijo en código** *(§11.4)*: *"El ritmo teórico depende del SKU y proviene del catálogo."*
 >
-> `PuestoSKU` es lo que hace computable *"fuera de operación"* (§5.3): un puesto está fuera de operación si su línea no está activa **o** si no tiene fila para el SKU del lote vigente.
+> `PuestoSKU` es lo que hace computable *"fuera de operación"* (§5.3), implementado en `fn_PuestoFueraDeOperacion` (E5.3): un puesto está fuera de operación si su línea no está activa (sin jornada abierta, o jornada sin SKU). Con línea activa, un puesto **sin ninguna fila en `PuestoSKU`** no depende del SKU — está disponible siempre que la línea opere (la mayoría de los fijos reales, 00 §G4). Un puesto **con** filas en `PuestoSKU` solo está disponible para los SKU que declara — decisión de ingeniería (la lectura literal "si no tiene fila para el SKU vigente" pondría fuera de operación a todo puesto sin ningún enlace, lo que habría vaciado el barrido automático); ver docs/PROGRESO.md, notas de ingeniería E5.
 
 ## 2.6 Puesto
 
@@ -378,7 +378,7 @@ CREATE TABLE UltimaTareaJornada (
 
 ## 4.1 Turno y JornadaLinea
 
-> **`JornadaLinea` existe desde la etapa E4 en una versión mínima**: solo `linea_id`, `arrancado_en`, `ventana_arranque_fin`, `cerrado_en` y `row_version` — lo que `fn_VentanaArranqueBloquea` (E4.5) necesita para leer, más un índice único filtrado que anticipa `UQ_Jornada` (como máximo una jornada abierta por línea). `Turno` no existe todavía, así que `turno_id`, `dia_operacion`, `sku_id`, `supervisor_id` y `estado` de abajo se añaden con `ALTER TABLE` en la etapa E5 (E5.1/E5.2), cuando el resto del ciclo de vida de la jornada se construye — mismo patrón ya usado con `Puesto` y `Personal` en E3. Ver docs/PROGRESO.md, notas de ingeniería E4.
+> **Completa desde la etapa E5.** La versión mínima de E4 (solo `linea_id`, `arrancado_en`, `ventana_arranque_fin`, `cerrado_en`, `row_version`) se amplió con `ALTER TABLE` al resto del diseño de abajo — mismo patrón ya usado con `Puesto` y `Personal` en E3. `Turno` se siembra **vacío** (00 §C6): los horarios concretos son dato de configuración del cliente, nunca inventados.
 
 ```sql
 CREATE TABLE Turno (
@@ -502,7 +502,7 @@ CREATE TABLE Desperdicio (
 
 ## 5.1 Asignacion — el corazón del modelo
 
-> **Existe desde la etapa E4** (UT-E4.6), completa tal como se describe abajo — `sp_ValidarAsignacion` (§7.2) necesita `Asignacion` para su paso 1 ("¿el puesto sigue libre?"). `sp_AsignarPersona` (§7.3, la escritura atómica con concurrencia) sigue pendiente de una etapa posterior; por ahora la única vía de escritura probada es una prueba de integración directa, no un endpoint.
+> **Existe desde la etapa E4** (UT-E4.6), completa tal como se describe abajo — `sp_ValidarAsignacion` (§7.2) necesita `Asignacion` para su paso 1 ("¿el puesto sigue libre?"). Desde E5.5, `sp_BarridoPuestosFijos` ya escribe aquí (el camino automático de puestos fijos al arrancar el turno, origen `'barrido_automatico'`). `sp_AsignarPersona` (§7.3, la escritura atómica con concurrencia para el registro MANUAL del supervisor en rotativos, con idempotencia — 00 §B1) sigue pendiente de la etapa E6.8.
 
 ```sql
 CREATE TABLE Asignacion (

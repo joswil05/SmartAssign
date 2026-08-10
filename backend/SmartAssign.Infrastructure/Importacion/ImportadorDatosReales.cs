@@ -77,6 +77,23 @@ public class ImportadorDatosReales(SmartAssignDbContext db) : IImportadorDatosRe
             ["Estibador"] = "Masculino",
         };
 
+    // 00 §G5, resuelto por el cliente (2026-08-09): "por ahora tómalos a
+    // todos esos como si fuese operador A, no hay operadores C ni B por
+    // los momentos". "Averiero" es mapeo literal (mismo valor, sin
+    // ambigüedad) — el resto (Operador/Genérico/Operador de filtro) son
+    // los tres PerfilRequerido que el cliente confirmó tratar como
+    // operador_a. "Supervisor" queda FUERA a propósito: es personal de
+    // liderazgo, nunca se asigna automáticamente (§4.1) — sp_BarridoPuestosFijos
+    // (E5.5) excluye esos puestos del barrido en vez de necesitar una categoría.
+    private static readonly Dictionary<string, string> MapaCategoriaTitularPorPerfil =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Averiero"] = "averiero",
+            ["Operador"] = "operador_a",
+            ["Genérico"] = "operador_a",
+            ["Operador de filtro"] = "operador_a",
+        };
+
     // Hoja "Personal ausente", columna CodSalida → AusenciaJustificada.Tipo
     // (04 §3.3, valores fijos del CHECK). "Emergencia" y "Consulta" no
     // tienen equivalente literal — inferencia propia, ver docs/PROGRESO.md.
@@ -237,7 +254,13 @@ public class ImportadorDatosReales(SmartAssignDbContext db) : IImportadorDatosRe
                     NombrePuesto = nombrePuesto,
                     // A12: sin TiempoEnPuesto → fijo; con valor → rotativo.
                     Tipo = tiempoEnPuesto is null ? "fijo" : "rotativo",
-                    CategoriaTitular = null, // 00 §G5: no derivable de PerfilRequerido, no se inventa
+                    // 00 §G5, resuelto: solo en fijos, mapeado del PerfilRequerido
+                    // real (Averiero literal; Operador/Genérico/Operador de filtro
+                    // → operador_a, confirmado por el cliente). "Supervisor" no
+                    // está en el mapa: queda NULL a propósito.
+                    CategoriaTitular = tiempoEnPuesto is null
+                        ? MapaCategoriaTitularPorPerfil.GetValueOrDefault(perfilRequerido)
+                        : null,
                     PerfilRequerido = perfilRequerido,
                     SexoPreferente = sexoPreferente,
                     HorasEnPuesto = (short?)tiempoEnPuesto,
@@ -278,6 +301,7 @@ public class ImportadorDatosReales(SmartAssignDbContext db) : IImportadorDatosRe
             {
                 existente.NombrePuesto = candidato.NombrePuesto;
                 existente.Tipo = candidato.Tipo;
+                existente.CategoriaTitular = candidato.CategoriaTitular;
                 existente.PerfilRequerido = candidato.PerfilRequerido;
                 existente.SexoPreferente = candidato.SexoPreferente;
                 existente.HorasEnPuesto = candidato.HorasEnPuesto;
@@ -352,6 +376,184 @@ public class ImportadorDatosReales(SmartAssignDbContext db) : IImportadorDatosRe
         await db.SaveChangesAsync(ct);
         return ResultadoImportacion.Exito(filasLeidas, importados);
     }
+
+    // 00 §G4: "Programa" es la única hoja limpia con SKU real — Item
+    // (código), Producto (descripción) y Velocidad (ritmo teórico, §11.4).
+    // Todo o nada: a diferencia de "Puestos SKU", esta hoja SÍ está
+    // completa (22 filas reales, ninguna ambigua).
+    public async Task<ResultadoImportacion> ImportarSkuAsync(Stream archivoExcel, CancellationToken ct = default)
+    {
+        using var libro = new XLWorkbook(archivoExcel);
+        var hoja = libro.Worksheet("Programa");
+
+        var errores = new List<ErrorImportacion>();
+        var porCodigo = new Dictionary<string, Sku>(StringComparer.OrdinalIgnoreCase);
+        var filasLeidas = 0;
+
+        foreach (var fila in hoja.RowsUsed().Skip(1))
+        {
+            var numeroFila = fila.RowNumber();
+            var item = fila.Cell(6).GetString().Trim();       // Item
+            if (item.Length == 0) continue;
+            filasLeidas++;
+
+            var producto = fila.Cell(10).GetString().Trim();  // Producto
+            var velocidadCelda = fila.Cell(12);                // Velocidad
+
+            if (producto.Length == 0)
+                errores.Add(new ErrorImportacion(numeroFila, "Producto", $"Producto vacío para el SKU '{item}'"));
+
+            decimal? ritmo = null;
+            if (velocidadCelda.IsEmpty() || velocidadCelda.GetDouble() <= 0)
+                errores.Add(new ErrorImportacion(numeroFila, "Velocidad", $"Velocidad inválida para el SKU '{item}'"));
+            else
+                ritmo = (decimal)velocidadCelda.GetDouble();
+
+            if (producto.Length == 0 || ritmo is null) continue;
+
+            if (porCodigo.TryGetValue(item, out var yaVisto))
+            {
+                if (yaVisto.Descripcion != producto || yaVisto.RitmoTeoricoHora != ritmo)
+                    errores.Add(new ErrorImportacion(numeroFila, "Item",
+                        $"El SKU '{item}' aparece con Producto/Velocidad distintos en más de una fila"));
+                continue;
+            }
+
+            porCodigo[item] = new Sku { Codigo = item, Descripcion = producto, RitmoTeoricoHora = ritmo.Value };
+        }
+
+        if (errores.Count > 0)
+            return ResultadoImportacion.Rechazo(filasLeidas, errores);
+
+        var importados = 0;
+        foreach (var candidato in porCodigo.Values)
+        {
+            var existente = await db.Skus.SingleOrDefaultAsync(s => s.Codigo == candidato.Codigo, ct);
+            if (existente is null)
+            {
+                db.Skus.Add(candidato);
+            }
+            else
+            {
+                existente.Descripcion = candidato.Descripcion;
+                existente.RitmoTeoricoHora = candidato.RitmoTeoricoHora;
+            }
+            importados++;
+        }
+
+        await db.SaveChangesAsync(ct);
+        return ResultadoImportacion.Exito(filasLeidas, importados);
+    }
+
+    // 00 §G4: "Puestos SKU" trae solo 18 filas y la mayoría incompletas —
+    // decisión ya cerrada de NO rechazar el lote entero por eso (a
+    // diferencia del resto de hojas). Solo Línea 1 (9 filas, 3 puestos ×
+    // 3 SKU reales) tiene al menos un Item verificable contra el
+    // catálogo; el resto (L02 sin Item, L04 con Item="Alcohol" que no es
+    // un código real, L05 sin ningún dato) no genera ningún Puesto ni
+    // enlace — un puesto sin un solo SKU verificado se leería como "no
+    // depende del SKU" (justo lo contrario de lo que dice esta hoja).
+    public async Task<ResultadoImportacion> ImportarPuestosSkuAsync(Stream archivoExcel, CancellationToken ct = default)
+    {
+        using var libro = new XLWorkbook(archivoExcel);
+        var hoja = libro.Worksheet("Puestos SKU");
+
+        var filasLeidas = 0;
+        var grupos = new Dictionary<(byte LineaId, string IdPuesto), List<FilaPuestoSku>>();
+
+        foreach (var fila in hoja.RowsUsed().Skip(1))
+        {
+            var idPuesto = fila.Cell(4).GetString().Trim();   // IdPuesto
+            if (idPuesto.Length == 0) continue;
+            filasLeidas++;
+
+            // Mismo patrón que "Puestos Fijos": la línea se deriva del
+            // prefijo del código ('L0N...'), no de la columna de texto.
+            if (idPuesto.Length < 3 || idPuesto[0] != 'L' ||
+                !byte.TryParse(idPuesto.AsSpan(1, 2), out var lineaId) || lineaId is < 1 or > 10)
+                continue; // código no ubicable en una línea real — se omite
+
+            var item = fila.Cell(2).GetString().Trim();
+            var nombre = fila.Cell(5).GetString().Trim();
+            var sexoPreferente = fila.Cell(6).GetString().Trim();
+            var tiempoEnPuesto = LeerEnteroONulo(fila.Cell(7));
+            var tiempoDeRecup = LeerEnteroONulo(fila.Cell(8));
+            var perfilRequerido = fila.Cell(9).GetString().Trim();
+
+            var clave = (lineaId, idPuesto);
+            if (!grupos.TryGetValue(clave, out var filasGrupo))
+                grupos[clave] = filasGrupo = [];
+
+            filasGrupo.Add(new FilaPuestoSku(
+                item.Length > 0 ? item : null,
+                nombre.Length > 0 ? nombre : null,
+                sexoPreferente.Length > 0 ? sexoPreferente : null,
+                tiempoEnPuesto, tiempoDeRecup,
+                perfilRequerido.Length > 0 ? perfilRequerido : null));
+        }
+
+        var enlacesImportados = 0;
+        foreach (var ((lineaId, idPuesto), filas) in grupos)
+        {
+            // Sin ninguna fila con detalle real (nombre), no hay puesto
+            // que crear — es exactamente el hueco que G4 ya documentó
+            // (L02S001 y L05S00x llegan así: solo el código, nada más).
+            var detalle = filas.FirstOrDefault(f => f.Nombre is not null);
+            if (detalle.Nombre is null) continue;
+
+            // Resuelve los SKU verificables ANTES de tocar Puesto: un
+            // puesto sin ningún enlace real a PuestoSKU se leería como
+            // "no depende del SKU, siempre disponible" (fn_PuestoFueraDeOperacion,
+            // 04 §2.5) — exactamente lo contrario de lo que esta hoja
+            // dice de él. Mejor no crearlo que crearlo mal caracterizado
+            // (L04S001 "Sticker 1" con Item="Alcohol" cae aquí: tiene
+            // nombre real, pero cero SKU verificable — se omite entero).
+            var skuIds = new List<int>();
+            foreach (var fila in filas)
+            {
+                if (fila.Item is null) continue;
+                var sku = await db.Skus.SingleOrDefaultAsync(s => s.Codigo == fila.Item, ct);
+                if (sku is not null) skuIds.Add(sku.Id);
+            }
+            if (skuIds.Count == 0) continue;
+
+            var sexoNormalizado = detalle.SexoPreferente is { Length: > 0 } s
+                ? char.ToUpperInvariant(s[0]) + s[1..].ToLowerInvariant()
+                : null;
+
+            var puesto = await db.Puestos.SingleOrDefaultAsync(p => p.LineaId == lineaId && p.Codigo == idPuesto, ct);
+            if (puesto is null)
+            {
+                puesto = new Puesto { LineaId = lineaId, Codigo = idPuesto };
+                db.Puestos.Add(puesto);
+            }
+
+            puesto.NombrePuesto = detalle.Nombre;
+            puesto.Tipo = "rotativo";       // trae TiempoEnPuesto (A12) — nunca fijo (C12)
+            puesto.CategoriaTitular = null; // C12: prohibido en rotativos
+            puesto.PerfilRequerido = detalle.PerfilRequerido;
+            puesto.SexoPreferente = sexoNormalizado;
+            puesto.HorasEnPuesto = (short?)detalle.TiempoEnPuesto;
+            puesto.HorasRecuperacion = (short?)detalle.TiempoDeRecup;
+            await db.SaveChangesAsync(ct);
+
+            foreach (var skuId in skuIds.Distinct())
+            {
+                var yaVinculado = await db.PuestosSku.AnyAsync(ps => ps.PuestoId == puesto.Id && ps.SkuId == skuId, ct);
+                if (yaVinculado) continue;
+
+                db.PuestosSku.Add(new PuestoSku { PuestoId = puesto.Id, SkuId = skuId });
+                enlacesImportados++;
+            }
+        }
+
+        await db.SaveChangesAsync(ct);
+        return ResultadoImportacion.Exito(filasLeidas, enlacesImportados);
+    }
+
+    private readonly record struct FilaPuestoSku(
+        string? Item, string? Nombre, string? SexoPreferente,
+        int? TiempoEnPuesto, int? TiempoDeRecup, string? PerfilRequerido);
 
     private static int? LeerEnteroONulo(IXLCell celda) =>
         celda.IsEmpty() ? null : (int)celda.GetDouble();
