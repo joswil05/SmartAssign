@@ -42,8 +42,21 @@ public class SmartAssignDbContext : DbContext
     public DbSet<Asignacion> Asignaciones => Set<Asignacion>();
     public DbSet<UltimaTareaJornada> UltimasTareasJornada => Set<UltimaTareaJornada>();
 
+    /// <summary>
+    /// Mapea la función SQL de la etapa E5 (§5.3) para poder usarla desde
+    /// LINQ — la malla (E6.4) necesita la MISMA situación que ya calcula
+    /// el motor de barrido, no una reimplementación en C# que pudiera
+    /// desincronizarse de la real.
+    /// </summary>
+    public static string SituacionPuesto(int puestoId) =>
+        throw new NotSupportedException("Solo se traduce dentro de una consulta LINQ.");
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.HasDbFunction(typeof(SmartAssignDbContext).GetMethod(nameof(SituacionPuesto))!)
+            .HasName("fn_SituacionPuesto")
+            .HasSchema("dbo");
+
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(SmartAssignDbContext).Assembly);
 
         // Estructural, inmutable — va también a producción (04 §11.3, A1).

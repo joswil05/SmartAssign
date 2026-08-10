@@ -7,12 +7,18 @@ namespace SmartAssign.Api.Endpoints;
 /// <summary>
 /// Primeros endpoints reales protegidos por el aislamiento de la etapa
 /// E2 (04 §6.2: "Ver malla de cualquier línea" / "Ver malla de su
-/// línea"). Exponen solo el resumen de la línea — la malla completa de
-/// puestos llega en la etapa E6; esto existe para que PC-1 tenga algo
-/// real que dos supervisores puedan golpear desde dos teléfonos.
+/// línea"). El resumen de línea es de E2; la malla completa de puestos
+/// (`/puestos`) es de E6.4 — mismo filtro de alcance, mismo patrón.
 /// </summary>
 public static class LineaEndpoints
 {
+    /// <summary>Puesto tal como lo pinta la tarjeta central de la app (03 §3.1).</summary>
+    public record PuestoMallaRespuesta(
+        int Id, string Codigo, string NombrePuesto, string Tipo, string Situacion,
+        OcupanteRespuesta? Ocupante, int IndicadorMedico, string MicroCopia);
+
+    public record OcupanteRespuesta(int PersonalId, string NombreCompleto, string Ficha, string Categoria);
+
     public static IEndpointRouteBuilder MapLineaEndpoints(this IEndpointRouteBuilder app)
     {
         // Coordinador: las 10 líneas, sin filtro (04 §6.2).
@@ -37,6 +43,90 @@ public static class LineaEndpoints
             .RequireAuthorization()
             .AddEndpointFilter<AlcanceLineaEndpointFilter>();
 
+        // 03 §4.3: fijos primero, rotativos después, cada grupo por
+        // identificador de puesto — orden estable, nunca decidido en el
+        // cliente. El agrupado visual (fuera de operación colapsado al
+        // final) es del cliente (E6.4): esto es dato, no interacción.
+        app.MapGet("/api/lineas/{lineaId}/puestos", async (byte lineaId, SmartAssignDbContext db, CancellationToken ct) =>
+            {
+                var hoy = DateOnly.FromDateTime(DateTime.UtcNow); // hora del servidor, 00 §C6
+
+                var filas = await db.Puestos
+                    .Where(p => p.LineaId == lineaId && p.Activo)
+                    .Select(p => new
+                    {
+                        p.Id,
+                        p.Codigo,
+                        p.NombrePuesto,
+                        p.Tipo,
+                        Situacion = SmartAssignDbContext.SituacionPuesto(p.Id),
+                        Asignacion = db.Asignaciones
+                            .Where(a => a.PuestoId == p.Id && a.Fin == null)
+                            .Select(a => new { a.PersonalId, a.TitularOriginalId, a.Origen })
+                            .SingleOrDefault(),
+                    })
+                    .OrderBy(p => p.Tipo == "fijo" ? 0 : 1)
+                    .ThenBy(p => p.Codigo)
+                    .ToListAsync(ct);
+
+                var personalIds = filas.Where(f => f.Asignacion != null).Select(f => f.Asignacion!.PersonalId).ToList();
+                var personas = await db.Personas
+                    .Where(per => personalIds.Contains(per.Id))
+                    .Select(per => new { per.Id, per.NombreCompleto, per.Ficha, per.Categoria })
+                    .ToDictionaryAsync(per => per.Id, ct);
+
+                var restriccionesVigentes = await db.RestriccionesMedicas
+                    .Where(r => personalIds.Contains(r.PersonalId)
+                        && r.FechaInicio <= hoy && (r.FechaFin == null || r.FechaFin >= hoy))
+                    .GroupBy(r => r.PersonalId)
+                    .Select(g => new { PersonalId = g.Key, Cantidad = g.Count() })
+                    .ToDictionaryAsync(g => g.PersonalId, g => g.Cantidad, ct);
+
+                var respuesta = filas.Select(f =>
+                {
+                    // §2.1: un rotativo vacío no es "libre" (blanco) ni
+                    // "vacante crítica" (roja) — es su propio estado
+                    // visual, con tratamiento propio. fn_SituacionPuesto
+                    // (E5, §5.3) es del motor de barrido, que solo conoce
+                    // fijos — la distinción es de presentación, aquí.
+                    var situacionMostrada = f.Situacion == "libre" && f.Tipo == "rotativo" ? "descubierto" : f.Situacion;
+
+                    OcupanteRespuesta? ocupante = null;
+                    var indicadorMedico = 0;
+                    if (f.Asignacion is { } asignacion && personas.TryGetValue(asignacion.PersonalId, out var persona))
+                    {
+                        ocupante = new OcupanteRespuesta(persona.Id, persona.NombreCompleto, persona.Ficha, persona.Categoria);
+                        indicadorMedico = restriccionesVigentes.GetValueOrDefault(persona.Id, 0);
+                    }
+
+                    var microCopia = MicroCopiaDePuesto(situacionMostrada, f.Tipo, f.Asignacion?.TitularOriginalId is not null);
+
+                    return new PuestoMallaRespuesta(f.Id, f.Codigo, f.NombrePuesto, f.Tipo, situacionMostrada, ocupante, indicadorMedico, microCopia);
+                }).ToList();
+
+                return Results.Ok(respuesta);
+            })
+            .RequireAuthorization()
+            .AddEndpointFilter<AlcanceLineaEndpointFilter>();
+
         return app;
     }
+
+    /// <summary>
+    /// Catálogo LITERAL de 03_UIUX_BRIEF.md §7.1 (transcrito de la fuente
+    /// §12.5) más las entradas "añadidas" de §7.2, en el mismo registro.
+    /// "Esperando el arranque del turno" es la única frase nueva de esta
+    /// UT (E6.4): ningún puesto fijo "libre" antes de que arranque el
+    /// turno estaba contemplado en el catálogo original — no inventa un
+    /// estado, describe con honestidad (§1.3) uno que ya existía.
+    /// </summary>
+    private static string MicroCopiaDePuesto(string situacion, string tipo, bool cubiertoPorSuplente) => situacion switch
+    {
+        "fuera_de_operacion" => "Puesto no requerido por el SKU de hoy",
+        "ocupado" when cubiertoPorSuplente => "Cubierto por suplente — titular ausente",
+        "ocupado" => "Asignado automáticamente por asistencia",
+        "vacante_critica" => "Sin titular ni suplente disponible",
+        "descubierto" => "Sin ocupante — pendiente de cubrir",
+        _ => "Esperando el arranque del turno", // "libre" en un fijo — añadida
+    };
 }

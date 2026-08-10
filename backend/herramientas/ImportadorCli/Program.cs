@@ -186,6 +186,14 @@ async Task<int> EjecutarCrearUsuarioPruebaAsync(string[] argumentos)
 
     if (lineaId is { } id)
     {
+        // UX_Linea_supervisor: un usuario no puede supervisar dos líneas a
+        // la vez — libera cualquier línea que ya tuviera antes de asignar
+        // la nueva (mismo criterio que sp_ConfirmarPlanificacion, E5.4).
+        // Sin esto, re-sembrar el mismo usuario de prueba en otra línea
+        // revienta la restricción única en vez de simplemente moverlo.
+        var lineaPrevia = await db.Lineas.SingleOrDefaultAsync(x => x.SupervisorActualId == usuario.Id && x.Id != id);
+        if (lineaPrevia is not null) lineaPrevia.SupervisorActualId = null;
+
         var linea = await db.Lineas.SingleAsync(x => x.Id == id);
         linea.SupervisorActualId = usuario.Id;
         await db.SaveChangesAsync();

@@ -15,9 +15,10 @@ import com.smartassign.app.ui.theme.TypeTitle
 
 /**
  * Raíces reales de cada rol tras autenticar (02 §1.1 último tramo).
- * Contenido real: Panel de Planta / Malla de línea (E6.4) / Panel Bolsón
- * (C7). Aquí solo existe la ruta y la prueba de que el enrutamiento llegó
- * al destino correcto — el contenido se construye en su propia etapa.
+ * La malla de línea del supervisor ya es real (`ui.malla.MallaLineaScreen`,
+ * E6.4) — lo que queda aquí es lo que todavía no tiene etapa propia:
+ * Panel de Planta (Coordinador) y Panel Bolsón (C7). Solo existe la ruta
+ * y la prueba de que el enrutamiento llegó al destino correcto.
  */
 @Composable
 private fun DestinoPlaceholder(titulo: String, subtitulo: String, tag: String) {
@@ -33,9 +34,6 @@ private fun DestinoPlaceholder(titulo: String, subtitulo: String, tag: String) {
 
 @Composable
 fun PanelPlantaScreen() = DestinoPlaceholder("Panel de Planta", "Coordinador — llega en una etapa posterior", "panel-planta")
-
-@Composable
-fun MallaLineaScreen() = DestinoPlaceholder("Malla de línea", "Se construye en la etapa E6.4", "malla-linea")
 
 @Composable
 fun PanelBolsonScreen() = DestinoPlaceholder("Panel del Bolsón", "L8 — sin malla de puestos (C7)", "panel-bolson")

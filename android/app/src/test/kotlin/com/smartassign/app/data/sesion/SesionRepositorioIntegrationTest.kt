@@ -19,11 +19,13 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Contra la Api real de esta misma rama, levantada de verdad
- * (`dotnet run`, `SmartAssignAndroidJvmTest`, ver docs/PROGRESO.md E6.3) —
- * no un servidor simulado. Corre como prueba de JVM (`testDebugUnitTest`):
- * la petición sale del proceso de pruebas directo a `localhost`, sin
- * pasar por el runtime de Android, así que no hace falta emulador ni
- * configuración de red de Android para este nivel.
+ * (`dotnet run`, `SmartAssignAndroidJvmTest2`, ver docs/PROGRESO.md E6.3/
+ * E6.4 — comparte la misma base descartable que `MallaRepositorioIntegrationTest`,
+ * un solo servidor para todo el módulo Android) — no un servidor
+ * simulado. Corre como prueba de JVM (`testDebugUnitTest`): la petición
+ * sale del proceso de pruebas directo a `localhost`, sin pasar por el
+ * runtime de Android, así que no hace falta emulador ni configuración de
+ * red de Android para este nivel.
  *
  * Usuarios de prueba creados con
  * `ImportadorCli crear-usuario-prueba` (E6.3, contraseñas reales
@@ -38,7 +40,7 @@ import java.util.concurrent.TimeUnit
  */
 class SesionRepositorioIntegrationTest {
 
-    private val urlServidor = "http://localhost:5080/"
+    private val urlServidor = "http://localhost:5081/"
 
     private fun nuevoRepositorio(local: SesionLocal = FakeSesionLocal()): SesionRepositorio {
         local.guardarServidorUrl(urlServidor)

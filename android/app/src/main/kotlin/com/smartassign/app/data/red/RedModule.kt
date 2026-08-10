@@ -60,4 +60,8 @@ object RedModule {
     @Provides
     @Singleton
     fun authApi(retrofit: Retrofit): AuthApi = retrofit.create(AuthApi::class.java)
+
+    @Provides
+    @Singleton
+    fun mallaApi(retrofit: Retrofit): MallaApi = retrofit.create(MallaApi::class.java)
 }

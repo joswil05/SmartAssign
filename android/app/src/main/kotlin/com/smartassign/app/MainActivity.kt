@@ -11,11 +11,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.smartassign.app.ui.altadispositivo.AltaDispositivoScreen
 import com.smartassign.app.ui.arranque.ArranqueScreen
-import com.smartassign.app.ui.destinos.MallaLineaScreen
 import com.smartassign.app.ui.destinos.PanelBolsonScreen
 import com.smartassign.app.ui.destinos.PanelPlantaScreen
 import com.smartassign.app.ui.destinos.SinLineaScreen
 import com.smartassign.app.ui.login.LoginScreen
+import com.smartassign.app.ui.malla.MallaLineaScreen
 import com.smartassign.app.ui.navegacion.Rutas
 import com.smartassign.app.ui.pin.PinScreen
 import com.smartassign.app.ui.theme.SmartAssignTheme
