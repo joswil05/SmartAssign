@@ -22,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.smartassign.app.data.malla.PuestoMalla
+import com.smartassign.app.ui.comun.etiquetaCategoria
 import com.smartassign.app.ui.theme.BgSurface
 import com.smartassign.app.ui.theme.ColorMedico
 import com.smartassign.app.ui.theme.EstadoCritico
@@ -115,13 +116,3 @@ private fun colorDeSituacion(situacion: String) = when (situacion) {
 }
 
 private fun etiquetaTipo(tipo: String) = if (tipo == "fijo") "Fijo" else "Rotativo"
-
-private fun etiquetaCategoria(categoria: String) = when (categoria) {
-    "operario" -> "Operario"
-    "operador_a" -> "Operador A"
-    "operador_b" -> "Operador B"
-    "operador_c" -> "Operador C"
-    "averiero" -> "Averiero"
-    "liderazgo" -> "Liderazgo"
-    else -> categoria
-}

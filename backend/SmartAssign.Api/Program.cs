@@ -100,6 +100,7 @@ app.MapControllers();
 app.MapAuthEndpoints();
 app.MapLineaEndpoints();
 app.MapServidorEndpoints();
+app.MapPersonalEndpoints();
 
 app.Run();
 
