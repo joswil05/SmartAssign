@@ -1,4 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using SmartAssign.Application.Autenticacion;
+using SmartAssign.Infrastructure.Persistence;
 
 namespace SmartAssign.Api.Endpoints;
 
@@ -31,6 +33,30 @@ public static class AuthEndpoints
             var resultado = await servicio.ReentrarConPinAsync(peticion.UsuarioId, peticion.Pin, peticion.DeviceId, ct);
             return AResultadoHttp(resultado);
         });
+
+        // 05_TRD.md §2.3: "GET /auth/me — Rol, nombre y línea vigente".
+        // La línea NUNCA viaja en el token (§2.3, ClaimsSmartAssign) — se
+        // resuelve aquí, en vivo, en cada petición, desde la única fuente
+        // de verdad (Linea.SupervisorActualId). Es lo que permite que el
+        // mapa de navegación 02 §1.1 decida <¿Tiene línea asignada?> y
+        // <¿Su línea es la L8?> sin que la app elija nunca de una lista.
+        app.MapGet("/api/auth/me", async (
+                System.Security.Claims.ClaimsPrincipal usuario, SmartAssignDbContext db, CancellationToken ct) =>
+            {
+                var usuarioIdTexto = usuario.FindFirst(ClaimsSmartAssign.UsuarioId)?.Value;
+                if (!int.TryParse(usuarioIdTexto, out var usuarioId)) return Results.Unauthorized();
+
+                var rol = usuario.FindFirst(ClaimsSmartAssign.Rol)?.Value ?? "";
+                var nombre = usuario.FindFirst(ClaimsSmartAssign.Nombre)?.Value ?? "";
+
+                var linea = await db.Lineas
+                    .Where(l => l.SupervisorActualId == usuarioId)
+                    .Select(l => new { l.Id, l.Codigo, l.Nombre, l.EsBolson })
+                    .SingleOrDefaultAsync(ct);
+
+                return Results.Ok(new { usuarioId, rol, nombre, linea });
+            })
+            .RequireAuthorization();
 
         app.MapPost("/api/auth/logout", async (
                 LogoutPeticion peticion, System.Security.Claims.ClaimsPrincipal usuario,

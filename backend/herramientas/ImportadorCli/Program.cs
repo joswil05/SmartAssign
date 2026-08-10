@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SmartAssign.Application.Importacion;
 using SmartAssign.Domain.Entities;
+using SmartAssign.Infrastructure.Autenticacion;
 using SmartAssign.Infrastructure.Importacion;
 using SmartAssign.Infrastructure.Persistence;
 using SmartAssign.Infrastructure.Semillas;
@@ -9,6 +10,10 @@ using SmartAssign.Infrastructure.Semillas;
 //
 //   importar <ruta.xlsx> [conexion]   — carga inicial de datos reales (07 §4.3, UT-E3.6)
 //   sembrar-adversaria [conexion]     — los 16 escenarios (07 §4.4, UT-E3.5). SOLO dev/test — 00 §G2.
+//   crear-usuario-prueba <user> <pass> <rol> [lineaId] [conexion]
+//       — usuario con credenciales reales verificables por login (E6.3).
+//         Sirve para probar la app Android contra una Api real levantada
+//         de verdad (no la Api de pruebas en memoria). SOLO dev/test.
 
 const string ConexionPorDefecto = "Server=(localdb)\\MSSQLLocalDB;Database=SmartAssignDev;Trusted_Connection=True;TrustServerCertificate=True;";
 
@@ -17,6 +22,7 @@ if (args.Length < 1)
     Console.Error.WriteLine("Uso:");
     Console.Error.WriteLine("  ImportadorCli importar <ruta-al-excel> [cadena-de-conexion]");
     Console.Error.WriteLine("  ImportadorCli sembrar-adversaria [cadena-de-conexion]");
+    Console.Error.WriteLine("  ImportadorCli crear-usuario-prueba <username> <password> <rol> [lineaId] [cadena-de-conexion]");
     return 1;
 }
 
@@ -24,6 +30,7 @@ return args[0] switch
 {
     "importar" => await EjecutarImportacionAsync(args),
     "sembrar-adversaria" => await EjecutarSiembraAdversariaAsync(args),
+    "crear-usuario-prueba" => await EjecutarCrearUsuarioPruebaAsync(args),
     var otro => Fallar($"Comando desconocido: '{otro}'"),
 };
 
@@ -128,6 +135,64 @@ async Task<int> EjecutarSiembraAdversariaAsync(string[] argumentos)
 
     Console.WriteLine("=== Semilla adversaria (07 §4.4) ===");
     Console.WriteLine(informe);
+    return 0;
+}
+
+async Task<int> EjecutarCrearUsuarioPruebaAsync(string[] argumentos)
+{
+    if (argumentos.Length < 4)
+        return Fallar("Uso: ImportadorCli crear-usuario-prueba <username> <password> <rol> [lineaId] [cadena-de-conexion]");
+
+    var username = argumentos[1];
+    var password = argumentos[2];
+    var rol = argumentos[3];
+    byte? lineaId = argumentos.Length > 4 && byte.TryParse(argumentos[4], out var l) ? l : null;
+    var cadenaConexion = argumentos.Length > 5 ? argumentos[5]
+        : argumentos.Length > 4 && lineaId is null ? argumentos[4] // permite omitir lineaId y pasar solo la conexión
+        : ConexionPorDefecto;
+
+    if (cadenaConexion.Contains("Prod", StringComparison.OrdinalIgnoreCase))
+        return Fallar("Cadena de conexión sospechosa de apuntar a producción — abortado (00 §G2: nunca a producción).");
+
+    await using var db = await AbrirConContextoCoordinadorAsync(cadenaConexion);
+    var credenciales = new ServicioCredenciales();
+    var (hash, salt) = credenciales.HashConSal(password);
+
+    var usuario = await db.Usuarios.SingleOrDefaultAsync(u => u.Username == username);
+    if (usuario is null)
+    {
+        usuario = new Usuario
+        {
+            Username = username,
+            NombreCompleto = $"{username} (usuario de prueba E6.3)",
+            Rol = rol,
+            OrigenIdentidad = "local",
+            PasswordHash = hash,
+            PasswordSalt = salt,
+            Activo = true,
+        };
+        db.Usuarios.Add(usuario);
+    }
+    else
+    {
+        usuario.PasswordHash = hash;
+        usuario.PasswordSalt = salt;
+        usuario.Rol = rol;
+        usuario.Activo = true;
+        usuario.IntentosFallidos = 0;
+        usuario.BloqueadoHasta = null;
+    }
+    await db.SaveChangesAsync();
+
+    if (lineaId is { } id)
+    {
+        var linea = await db.Lineas.SingleAsync(x => x.Id == id);
+        linea.SupervisorActualId = usuario.Id;
+        await db.SaveChangesAsync();
+    }
+
+    Console.WriteLine($"OK — usuario '{username}' (rol={rol}, id={usuario.Id}) listo con contraseña real."
+        + (lineaId is { } lid ? $" Supervisa la línea {lid}." : ""));
     return 0;
 }
 

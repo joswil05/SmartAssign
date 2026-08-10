@@ -99,6 +99,7 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapAuthEndpoints();
 app.MapLineaEndpoints();
+app.MapServidorEndpoints();
 
 app.Run();
 

@@ -1,11 +1,13 @@
 // SmartAssign — módulo app. Stack completo en docs/05_TRD.md §1.5.
-// Dependencias de red, Room, Hilt, CameraX/ML Kit y SignalR se añaden
-// en las etapas E6, E8, E12 y E13 del plan (docs/07_PLAN_DE_EJECUCION.md),
-// no aquí: el esqueleto se mantiene mínimo para que el primer build sea fiable.
+// Red + Hilt + almacenamiento cifrado + CameraX/ML Kit entran en E6.3.
+// Room/SQLCipher (caché sin conexión) y SignalR quedan para E12/E13.
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.hilt)
 }
 
 android {
@@ -70,7 +72,32 @@ dependencies {
     implementation(libs.navigation.compose)
     debugImplementation(libs.compose.ui.tooling)
 
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
+    implementation(libs.hilt.navigation.compose)
+
+    implementation(libs.retrofit.core)
+    implementation(libs.retrofit.kotlinx.serialization)
+    implementation(libs.okhttp.core)
+    implementation(libs.okhttp.logging)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.coroutines.android)
+
+    implementation(libs.security.crypto)
+
+    implementation(libs.camerax.core)
+    implementation(libs.camerax.camera2)
+    implementation(libs.camerax.lifecycle)
+    implementation(libs.camerax.view)
+    implementation(libs.mlkit.barcode)
+
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.okhttp.core)
+    testImplementation(libs.retrofit.core)
+    testImplementation(libs.retrofit.kotlinx.serialization)
+    testImplementation(libs.kotlinx.serialization.json)
+
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.espresso.core)
