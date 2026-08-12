@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using SmartAssign.Api.TiempoReal;
 using SmartAssign.Application.Autenticacion;
 using SmartAssign.Application.Seguridad;
 using SmartAssign.Infrastructure.Persistence;
@@ -51,8 +52,8 @@ public class PlantaHub(SmartAssignDbContext db, IAlcanceLineaResolver alcanceLin
 
         if (rol == "coordinador")
         {
-            await Groups.AddToGroupAsync(Context.ConnectionId, "planta");
-            await Groups.AddToGroupAsync(Context.ConnectionId, "bolson");
+            await Groups.AddToGroupAsync(Context.ConnectionId, NombresDeGrupo.Planta);
+            await Groups.AddToGroupAsync(Context.ConnectionId, NombresDeGrupo.Bolson);
 
             // linea:{id} para cada línea que NO es el Bolsón (nunca se asume el Id 8).
             // Sin Context.ConnectionAborted aquí a propósito: con el transporte
@@ -65,11 +66,11 @@ public class PlantaHub(SmartAssignDbContext db, IAlcanceLineaResolver alcanceLin
                 .ToListAsync();
 
             foreach (var lineaId in lineaIds)
-                await Groups.AddToGroupAsync(Context.ConnectionId, $"linea:{lineaId}");
+                await Groups.AddToGroupAsync(Context.ConnectionId, NombresDeGrupo.DeLinea(lineaId));
         }
         else if (rol == "supervisor")
         {
-            await Groups.AddToGroupAsync(Context.ConnectionId, "avisos");
+            await Groups.AddToGroupAsync(Context.ConnectionId, NombresDeGrupo.Avisos);
 
             var usuarioIdTexto = Context.User?.FindFirst(ClaimsSmartAssign.UsuarioId)?.Value;
             if (int.TryParse(usuarioIdTexto, out var usuarioId))
@@ -82,7 +83,7 @@ public class PlantaHub(SmartAssignDbContext db, IAlcanceLineaResolver alcanceLin
                         .Select(l => l.EsBolson)
                         .SingleAsync();
 
-                    await Groups.AddToGroupAsync(Context.ConnectionId, esBolson ? "bolson" : $"linea:{id}");
+                    await Groups.AddToGroupAsync(Context.ConnectionId, esBolson ? NombresDeGrupo.Bolson : NombresDeGrupo.DeLinea(id));
                 }
             }
         }
