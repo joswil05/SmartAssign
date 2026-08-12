@@ -71,4 +71,70 @@ class TarjetaDePuestoTest {
 
         compose.onNodeWithText("Puesto no requerido por el SKU de hoy").assertExists()
     }
+
+    // ═══ E7.4 — barra de fatiga y distintivo de doble turno ═══
+
+    private fun puestoRotativoOcupado(nivelFatiga: String?, excesoFatiga: Double?, dobleTurno: Boolean = false) = PuestoMalla(
+        id = 5, codigo = "L4-R05", nombrePuesto = "Rotativo", tipo = "rotativo", situacion = "ocupado",
+        ocupante = OcupantePuesto(9, "Juan Pérez", "1000", "operario", dobleTurno),
+        indicadorMedico = 0, microCopia = "Asignado automáticamente por asistencia",
+        nivelFatiga = nivelFatiga, excesoFatiga = excesoFatiga
+    )
+
+    @Test
+    fun sin_nivel_de_fatiga_no_se_dibuja_ninguna_barra() {
+        // §1.3: nunca una barra sin dato real detrás — un fijo, o un
+        // rotativo recién arrancado, no traen nivelFatiga.
+        val puesto = puestoRotativoOcupado(nivelFatiga = null, excesoFatiga = null)
+
+        compose.setContent { TarjetaDePuesto(puesto) }
+
+        compose.onNodeWithTag("tarjeta-puesto-5-barra-fatiga").assertDoesNotExist()
+    }
+
+    @Test
+    fun nivel_normal_dibuja_la_barra_sin_iconos_de_alerta() {
+        val puesto = puestoRotativoOcupado(nivelFatiga = "normal", excesoFatiga = 20.0)
+
+        compose.setContent { TarjetaDePuesto(puesto) }
+
+        compose.onNodeWithTag("tarjeta-puesto-5-barra-fatiga").assertExists()
+    }
+
+    @Test
+    fun nivel_sugerido_dibuja_la_barra_con_su_icono_propio() {
+        val puesto = puestoRotativoOcupado(nivelFatiga = "sugerido", excesoFatiga = 120.0)
+
+        compose.setContent { TarjetaDePuesto(puesto) }
+
+        compose.onNodeWithTag("tarjeta-puesto-5-barra-fatiga").assertExists()
+    }
+
+    @Test
+    fun nivel_critico_dibuja_la_barra_con_su_icono_propio() {
+        val puesto = puestoRotativoOcupado(nivelFatiga = "critico", excesoFatiga = 180.0)
+
+        compose.setContent { TarjetaDePuesto(puesto) }
+
+        compose.onNodeWithTag("tarjeta-puesto-5-barra-fatiga").assertExists()
+    }
+
+    @Test
+    fun el_distintivo_de_doble_turno_solo_aparece_cuando_el_ocupante_lo_tiene() {
+        // 00 §B7: distintivo permanente, informativo.
+        val conDobleTurno = puestoRotativoOcupado(nivelFatiga = null, excesoFatiga = null, dobleTurno = true)
+
+        compose.setContent { TarjetaDePuesto(conDobleTurno) }
+
+        compose.onNodeWithTag("tarjeta-puesto-5-doble-turno").assertExists()
+    }
+
+    @Test
+    fun sin_doble_turno_no_aparece_el_distintivo() {
+        val sinDobleTurno = puestoRotativoOcupado(nivelFatiga = null, excesoFatiga = null, dobleTurno = false)
+
+        compose.setContent { TarjetaDePuesto(sinDobleTurno) }
+
+        compose.onNodeWithTag("tarjeta-puesto-5-doble-turno").assertDoesNotExist()
+    }
 }

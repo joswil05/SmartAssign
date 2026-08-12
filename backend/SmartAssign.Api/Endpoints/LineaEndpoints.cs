@@ -12,12 +12,22 @@ namespace SmartAssign.Api.Endpoints;
 /// </summary>
 public static class LineaEndpoints
 {
-    /// <summary>Puesto tal como lo pinta la tarjeta central de la app (03 §3.1).</summary>
+    /// <summary>
+    /// Puesto tal como lo pinta la tarjeta central de la app (03 §3.1).
+    /// <c>NivelFatiga</c>/<c>ExcesoFatiga</c> (E7.4): la barra continua,
+    /// null en fijos y en rotativos sin nadie asignado (§9.1) — nunca se
+    /// dibuja una barra sin dato real detrás (§1.3).
+    /// </summary>
     public record PuestoMallaRespuesta(
         int Id, string Codigo, string NombrePuesto, string Tipo, string Situacion,
-        OcupanteRespuesta? Ocupante, int IndicadorMedico, string MicroCopia);
+        OcupanteRespuesta? Ocupante, int IndicadorMedico, string MicroCopia,
+        string? NivelFatiga, decimal? ExcesoFatiga);
 
-    public record OcupanteRespuesta(int PersonalId, string NombreCompleto, string Ficha, string Categoria);
+    /// <summary>
+    /// <c>DobleTurno</c> (00 §B7): "distintivo visual permanente en la
+    /// persona, en toda pantalla donde aparezca" — la malla es una de ellas.
+    /// </summary>
+    public record OcupanteRespuesta(int PersonalId, string NombreCompleto, string Ficha, string Categoria, bool DobleTurno);
 
     public static IEndpointRouteBuilder MapLineaEndpoints(this IEndpointRouteBuilder app)
     {
@@ -60,6 +70,8 @@ public static class LineaEndpoints
                         p.NombrePuesto,
                         p.Tipo,
                         Situacion = SmartAssignDbContext.SituacionPuesto(p.Id),
+                        NivelFatiga = SmartAssignDbContext.NivelFatiga(p.Id),
+                        ExcesoFatiga = SmartAssignDbContext.ExcesoRelativoFatiga(p.Id),
                         Asignacion = db.Asignaciones
                             .Where(a => a.PuestoId == p.Id && a.Fin == null)
                             .Select(a => new { a.PersonalId, a.TitularOriginalId, a.Origen })
@@ -72,7 +84,7 @@ public static class LineaEndpoints
                 var personalIds = filas.Where(f => f.Asignacion != null).Select(f => f.Asignacion!.PersonalId).ToList();
                 var personas = await db.Personas
                     .Where(per => personalIds.Contains(per.Id))
-                    .Select(per => new { per.Id, per.NombreCompleto, per.Ficha, per.Categoria })
+                    .Select(per => new { per.Id, per.NombreCompleto, per.Ficha, per.Categoria, per.DobleTurno })
                     .ToDictionaryAsync(per => per.Id, ct);
 
                 var restriccionesVigentes = await db.RestriccionesMedicas
@@ -95,13 +107,15 @@ public static class LineaEndpoints
                     var indicadorMedico = 0;
                     if (f.Asignacion is { } asignacion && personas.TryGetValue(asignacion.PersonalId, out var persona))
                     {
-                        ocupante = new OcupanteRespuesta(persona.Id, persona.NombreCompleto, persona.Ficha, persona.Categoria);
+                        ocupante = new OcupanteRespuesta(persona.Id, persona.NombreCompleto, persona.Ficha, persona.Categoria, persona.DobleTurno);
                         indicadorMedico = restriccionesVigentes.GetValueOrDefault(persona.Id, 0);
                     }
 
                     var microCopia = MicroCopiaDePuesto(situacionMostrada, f.Tipo, f.Asignacion?.TitularOriginalId is not null);
 
-                    return new PuestoMallaRespuesta(f.Id, f.Codigo, f.NombrePuesto, f.Tipo, situacionMostrada, ocupante, indicadorMedico, microCopia);
+                    return new PuestoMallaRespuesta(
+                        f.Id, f.Codigo, f.NombrePuesto, f.Tipo, situacionMostrada, ocupante, indicadorMedico, microCopia,
+                        f.NivelFatiga, f.ExcesoFatiga);
                 }).ToList();
 
                 return Results.Ok(respuesta);

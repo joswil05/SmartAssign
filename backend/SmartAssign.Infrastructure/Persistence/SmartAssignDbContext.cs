@@ -52,10 +52,30 @@ public class SmartAssignDbContext : DbContext
     public static string SituacionPuesto(int puestoId) =>
         throw new NotSupportedException("Solo se traduce dentro de una consulta LINQ.");
 
+    /// <summary>
+    /// E7.3/E7.4: mapea <c>fn_NivelFatiga</c>/<c>fn_ExcesoRelativoFatiga</c>
+    /// (que ya incorporan el factor de doble turno, 00 §B7) para que la
+    /// malla (E6.4) muestre la barra continua sin reimplementar el motor
+    /// de fatiga en C# — mismo criterio que <see cref="SituacionPuesto"/>.
+    /// </summary>
+    public static string? NivelFatiga(int puestoId) =>
+        throw new NotSupportedException("Solo se traduce dentro de una consulta LINQ.");
+
+    public static decimal? ExcesoRelativoFatiga(int puestoId) =>
+        throw new NotSupportedException("Solo se traduce dentro de una consulta LINQ.");
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDbFunction(typeof(SmartAssignDbContext).GetMethod(nameof(SituacionPuesto))!)
             .HasName("fn_SituacionPuesto")
+            .HasSchema("dbo");
+
+        modelBuilder.HasDbFunction(typeof(SmartAssignDbContext).GetMethod(nameof(NivelFatiga))!)
+            .HasName("fn_NivelFatiga")
+            .HasSchema("dbo");
+
+        modelBuilder.HasDbFunction(typeof(SmartAssignDbContext).GetMethod(nameof(ExcesoRelativoFatiga))!)
+            .HasName("fn_ExcesoRelativoFatiga")
             .HasSchema("dbo");
 
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(SmartAssignDbContext).Assembly);

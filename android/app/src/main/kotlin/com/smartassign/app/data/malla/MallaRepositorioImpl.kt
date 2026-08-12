@@ -30,8 +30,10 @@ class MallaRepositorioImpl @Inject constructor(private val api: MallaApi) : Mall
         nombrePuesto = r.nombrePuesto,
         tipo = r.tipo,
         situacion = r.situacion,
-        ocupante = r.ocupante?.let { OcupantePuesto(it.personalId, it.nombreCompleto, it.ficha, it.categoria) },
+        ocupante = r.ocupante?.let { OcupantePuesto(it.personalId, it.nombreCompleto, it.ficha, it.categoria, it.dobleTurno) },
         indicadorMedico = r.indicadorMedico,
-        microCopia = r.microCopia
+        microCopia = r.microCopia,
+        nivelFatiga = r.nivelFatiga,
+        excesoFatiga = r.excesoFatiga
     )
 }

@@ -8,7 +8,8 @@ data class OcupanteResponse(
     val personalId: Int,
     val nombreCompleto: String,
     val ficha: String,
-    val categoria: String
+    val categoria: String,
+    val dobleTurno: Boolean = false
 )
 
 @Serializable
@@ -20,5 +21,7 @@ data class PuestoMallaResponse(
     val situacion: String,
     val ocupante: OcupanteResponse? = null,
     val indicadorMedico: Int,
-    val microCopia: String
+    val microCopia: String,
+    val nivelFatiga: String? = null,
+    val excesoFatiga: Double? = null
 )

@@ -79,7 +79,7 @@ public class MallaLineaEndpointTests(SmartAssignApiFactory factory) : IClassFixt
     }
 
     private async Task<int> CrearPuestoAsync(byte lineaId, string tipo, string? codigo = null,
-        string? categoriaTitular = null, int? titularId = null)
+        string? categoriaTitular = null, int? titularId = null, short? horasEnPuesto = null, short? umbralCriticoHoras = null)
     {
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<SmartAssignDbContext>();
@@ -87,10 +87,59 @@ public class MallaLineaEndpointTests(SmartAssignApiFactory factory) : IClassFixt
         {
             LineaId = lineaId, Codigo = codigo ?? $"T{Guid.NewGuid():N}"[..15], NombrePuesto = "Puesto de prueba",
             Tipo = tipo, CategoriaTitular = categoriaTitular, TitularId = titularId, Activo = true,
+            HorasEnPuesto = horasEnPuesto, UmbralCriticoHoras = umbralCriticoHoras,
         };
         db.Puestos.Add(puesto);
         await db.SaveChangesAsync();
         return puesto.Id;
+    }
+
+    private async Task<int> CrearPersonaConDobleTurnoAsync(string categoria, bool dobleTurno, byte? lineaFisicaActual = null)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<SmartAssignDbContext>();
+        var p = new Personal
+        {
+            Ficha = $"F{Guid.NewGuid():N}"[..12], NombreCompleto = "Persona de prueba",
+            Categoria = categoria, LineaFisicaActual = lineaFisicaActual, Situacion = "presente_sin_asignar",
+            DobleTurno = dobleTurno,
+        };
+        db.Personas.Add(p);
+        await db.SaveChangesAsync();
+        return p.Id;
+    }
+
+    /// <summary>
+    /// Asigna directamente por EF, sin pasar por <c>sp_AsignarPersona</c>
+    /// — igual que <c>Reglas.SeguridadTests</c> — para poder controlar
+    /// <c>Inicio</c> y así probar E7.4 (nivel/exceso de fatiga) sin
+    /// depender de tiempo real de ejecución.
+    /// </summary>
+    private async Task AsignarDirectoDesdeHaceAsync(int puestoId, int personalId, int jornadaLineaId, int usuarioId, int minutosAtras)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<SmartAssignDbContext>();
+        db.Asignaciones.Add(new Asignacion
+        {
+            JornadaLineaId = jornadaLineaId, PuestoId = puestoId, PersonalId = personalId,
+            Origen = "manual_supervisor", Inicio = DateTime.UtcNow.AddMinutes(-minutosAtras), AsignadoPor = usuarioId,
+        });
+        await db.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// JornadaLinea tiene RLS (04 §6.3, E4.7) — el <c>db</c> de un scope
+    /// creado fuera de una petición HTTP real no trae contexto de
+    /// coordinador, así que se lee por SQL crudo con el contexto puesto
+    /// a mano, igual que <see cref="AbrirComoCoordinadorAsync"/>.
+    /// </summary>
+    private async Task<int> JornadaAbiertaDeAsync(byte lineaId)
+    {
+        await using var conexion = await AbrirComoCoordinadorAsync();
+        await using var cmd = conexion.CreateCommand();
+        cmd.CommandText = "SELECT Id FROM JornadaLinea WHERE linea_id = @linea_id AND cerrado_en IS NULL";
+        cmd.Parameters.AddWithValue("@linea_id", lineaId);
+        return (int)(await cmd.ExecuteScalarAsync())!;
     }
 
     private async Task AgregarRestriccionMedicaAsync(int personalId, int registradoPor)
@@ -371,5 +420,65 @@ public class MallaLineaEndpointTests(SmartAssignApiFactory factory) : IClassFixt
         ConAutorizacion(cliente, await LoginAsync(cliente, username, password, "device-malla-9"));
 
         (await cliente.GetAsync("/api/lineas/2/puestos")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    // ═══ E7.4 — nivel/exceso de fatiga y distintivo de doble turno ═══
+    //
+    // Líneas 8 y 10: las dos únicas sin reclamar por el resto de la
+    // suite (docs/PROGRESO.md, nota de esta UT) — cada prueba abre su
+    // propia jornada, así que reutiliza otra línea ya usada arriba
+    // rompería UX_JornadaLinea_abierta o el conteo exacto de puestos de
+    // "Los_fijos_aparecen_antes...". Cada prueba también cubre, de paso,
+    // el distintivo de doble turno (00 §B7) para no reclamar una tercera
+    // línea solo para eso.
+
+    [Fact]
+    public async Task Un_rotativo_ocupado_muestra_nivel_exceso_de_fatiga_y_el_distintivo_de_doble_turno()
+    {
+        var dia = new DateOnly(2026, 8, 10);
+        var coordId = (await CrearUsuarioAsync("coordinador", "coord_malla_10")).usuarioId;
+        var (supId, username, password) = await CrearUsuarioAsync("supervisor", "sup_malla_10", lineaSupervisada: 8);
+        var (turno, _) = await PrepararTurnoConfirmadoAsync(8, dia, coordId, supId);
+        var jornadaId = await JornadaAbiertaDeAsync(8);
+
+        var puestoId = await CrearPuestoAsync(8, "rotativo", codigo: "L8-R01", horasEnPuesto: 1); // umbral 60 min
+        var persona = await CrearPersonaConDobleTurnoAsync("operario", dobleTurno: true, lineaFisicaActual: 8);
+        await AsignarDirectoDesdeHaceAsync(puestoId, persona, jornadaId, coordId, minutosAtras: 90);
+
+        using var cliente = factory.CreateClient();
+        ConAutorizacion(cliente, await LoginAsync(cliente, username, password, "device-malla-10"));
+        var puestos = await (await cliente.GetAsync("/api/lineas/8/puestos")).Content.ReadFromJsonAsync<JsonElement>();
+
+        var puesto = puestos.EnumerateArray().Single(p => p.GetProperty("id").GetInt32() == puestoId);
+        puesto.GetProperty("nivelFatiga").GetString().Should().Be("sugerido");
+        puesto.GetProperty("excesoFatiga").GetDecimal().Should().BeGreaterThan(100m, "90 min sobre un umbral de 60 supera el 100%");
+        // 00 §B7: distintivo permanente en la persona, visible también en la malla.
+        puesto.GetProperty("ocupante").GetProperty("dobleTurno").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Un_fijo_nunca_muestra_nivel_ni_exceso_de_fatiga_aunque_este_ocupado()
+    {
+        // §9.1/§5.1: "los operadores en puestos fijos no entran en este
+        // cálculo" — asignación directa (no barrido) para no depender de
+        // arrancar el turno; sin doble turno, cubre el caso "false".
+        var dia = new DateOnly(2026, 8, 10);
+        var coordId = (await CrearUsuarioAsync("coordinador", "coord_malla_11")).usuarioId;
+        var (supId, username, password) = await CrearUsuarioAsync("supervisor", "sup_malla_11", lineaSupervisada: 10);
+        var (turno, _) = await PrepararTurnoConfirmadoAsync(10, dia, coordId, supId);
+        var jornadaId = await JornadaAbiertaDeAsync(10);
+
+        var puestoId = await CrearPuestoAsync(10, "fijo", codigo: "L10-A01", categoriaTitular: "operador_a", horasEnPuesto: 1);
+        var titular = await CrearPersonaAsync("operador_a", lineaFisicaActual: 10);
+        await AsignarDirectoDesdeHaceAsync(puestoId, titular, jornadaId, coordId, minutosAtras: 500);
+
+        using var cliente = factory.CreateClient();
+        ConAutorizacion(cliente, await LoginAsync(cliente, username, password, "device-malla-11"));
+        var puestos = await (await cliente.GetAsync("/api/lineas/10/puestos")).Content.ReadFromJsonAsync<JsonElement>();
+
+        var puesto = puestos.EnumerateArray().Single(p => p.GetProperty("id").GetInt32() == puestoId);
+        puesto.GetProperty("nivelFatiga").ValueKind.Should().Be(JsonValueKind.Null);
+        puesto.GetProperty("excesoFatiga").ValueKind.Should().Be(JsonValueKind.Null);
+        puesto.GetProperty("ocupante").GetProperty("dobleTurno").GetBoolean().Should().BeFalse();
     }
 }
