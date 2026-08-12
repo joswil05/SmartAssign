@@ -5,11 +5,13 @@ using Xunit;
 namespace Arquitectura.Tests;
 
 /// <summary>
-/// Reglas de dependencia de docs/05_TRD.md §4.1. La regla más importante
-/// del proyecto (A9: el motor de relevos nunca referencia el servicio de
-/// prioridad) se añade en la etapa E9, cuando ambos existan — ver
-/// UT-E9.9 en docs/PROGRESO.md. Esta clase arranca con las reglas que
-/// ya son verificables desde la etapa E1: el Dominio no depende de nada.
+/// Reglas de dependencia de docs/05_TRD.md §4.1, verificables desde la
+/// etapa E1 con <c>NetArchTest</c> (ensamblados/tipos .NET). La regla
+/// más importante del proyecto (A9: el motor de relevos nunca
+/// referencia el servicio de prioridad) vive aparte, en
+/// <see cref="MotorDeRelevosTests"/> (UT-E9.9) — el backend real no
+/// separó los motores en ensamblados C#, así que esa regla se verifica
+/// sobre el texto de los objetos SQL desplegados, no con NetArchTest.
 /// </summary>
 public class CapasTests
 {
