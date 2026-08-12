@@ -222,7 +222,14 @@ public class DespachoDeMovimientoTests : IAsyncLifetime
         // El chequeo de situación (pre-transacción) puede pasar en varios a
         // la vez si aún no hay ningún commit — la sección serializada por
         // UPDLOCK, que sí ve el Movimiento ya insertado por el ganador, es
-        // la que de verdad garantiza el "solo uno" de arriba.
-        resultados.Count(r => r.Codigo == "YA_EN_TRANSITO").Should().Be(4);
+        // la que de verdad garantiza el "solo uno" de arriba. Cuál de los
+        // dos códigos recibe cada perdedor depende de si su lectura previa
+        // de `situacion` corrió antes o después del commit del ganador —
+        // no es determinista bajo carga real (verificado: la distribución
+        // exacta varía entre corridas). La única invariante real es que
+        // TODOS los perdedores queden rechazados por uno de los dos.
+        resultados.Where(r => r.Codigo is not null)
+            .Should().OnlyContain(r => r.Codigo == "YA_EN_TRANSITO" || r.Codigo == "NO_DISPONIBLE_PARA_DESPACHO")
+            .And.HaveCount(4);
     }
 }
