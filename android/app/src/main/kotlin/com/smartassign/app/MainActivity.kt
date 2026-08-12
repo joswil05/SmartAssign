@@ -4,7 +4,13 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -17,6 +23,8 @@ import com.smartassign.app.ui.destinos.SinLineaScreen
 import com.smartassign.app.ui.login.LoginScreen
 import com.smartassign.app.ui.malla.MallaLineaScreen
 import com.smartassign.app.ui.navegacion.Rutas
+import com.smartassign.app.ui.paro.CronometroDeParo
+import com.smartassign.app.ui.paro.CronometroDeParoViewModel
 import com.smartassign.app.ui.pin.PinScreen
 import com.smartassign.app.ui.theme.SmartAssignTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -39,32 +47,54 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/**
+ * E11.3 (§11.1, 03 §3.8): el cronómetro de paro vive AQUÍ, envolviendo el
+ * `NavHost` en vez de vivir dentro de un `composable(...)` — es la única
+ * forma de que sea "visible en todo momento, aunque el supervisor navegue
+ * a otras partes de la aplicación". `hiltViewModel()` sin argumentos, en
+ * este punto del árbol, resuelve contra el propio `ComponentActivity`
+ * (no contra un destino del grafo), así que sobrevive intacto a cualquier
+ * navegación — se reinicia solo si la Activity misma se recrea.
+ */
 @Composable
-fun GrafoDeNavegacion(controlador: NavHostController = rememberNavController()) {
-    NavHost(navController = controlador, startDestination = Rutas.ARRANQUE) {
-        composable(Rutas.ARRANQUE) {
-            ArranqueScreen(onNavegarA = { ruta -> navegarYReemplazarArranque(controlador, ruta) })
+fun GrafoDeNavegacion(
+    controlador: NavHostController = rememberNavController(),
+    cronometroViewModel: CronometroDeParoViewModel = hiltViewModel()
+) {
+    val paroActivo by cronometroViewModel.paro.collectAsState()
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        CronometroDeParo(paro = paroActivo)
+
+        NavHost(
+            navController = controlador,
+            startDestination = Rutas.ARRANQUE,
+            modifier = Modifier.weight(1f)
+        ) {
+            composable(Rutas.ARRANQUE) {
+                ArranqueScreen(onNavegarA = { ruta -> navegarYReemplazarArranque(controlador, ruta) })
+            }
+            composable(Rutas.ALTA_DISPOSITIVO) {
+                AltaDispositivoScreen(onServidorConfigurado = {
+                    controlador.navigate(Rutas.LOGIN) { popUpTo(Rutas.ALTA_DISPOSITIVO) { inclusive = true } }
+                })
+            }
+            composable(Rutas.LOGIN) {
+                LoginScreen(onAutenticado = { destino -> navegarYLimpiarHistorialDeSesion(controlador, destino) })
+            }
+            composable(Rutas.PIN) {
+                PinScreen(
+                    onAutenticado = { destino -> navegarYLimpiarHistorialDeSesion(controlador, destino) },
+                    onVolverALogin = {
+                        controlador.navigate(Rutas.LOGIN) { popUpTo(Rutas.ARRANQUE) { inclusive = false } }
+                    }
+                )
+            }
+            composable(Rutas.PANEL_PLANTA) { PanelPlantaScreen() }
+            composable(Rutas.MALLA_LINEA) { MallaLineaScreen() }
+            composable(Rutas.PANEL_BOLSON) { PanelBolsonScreen() }
+            composable(Rutas.SIN_LINEA) { SinLineaScreen() }
         }
-        composable(Rutas.ALTA_DISPOSITIVO) {
-            AltaDispositivoScreen(onServidorConfigurado = {
-                controlador.navigate(Rutas.LOGIN) { popUpTo(Rutas.ALTA_DISPOSITIVO) { inclusive = true } }
-            })
-        }
-        composable(Rutas.LOGIN) {
-            LoginScreen(onAutenticado = { destino -> navegarYLimpiarHistorialDeSesion(controlador, destino) })
-        }
-        composable(Rutas.PIN) {
-            PinScreen(
-                onAutenticado = { destino -> navegarYLimpiarHistorialDeSesion(controlador, destino) },
-                onVolverALogin = {
-                    controlador.navigate(Rutas.LOGIN) { popUpTo(Rutas.ARRANQUE) { inclusive = false } }
-                }
-            )
-        }
-        composable(Rutas.PANEL_PLANTA) { PanelPlantaScreen() }
-        composable(Rutas.MALLA_LINEA) { MallaLineaScreen() }
-        composable(Rutas.PANEL_BOLSON) { PanelBolsonScreen() }
-        composable(Rutas.SIN_LINEA) { SinLineaScreen() }
     }
 }
 
