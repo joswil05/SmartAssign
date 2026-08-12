@@ -1,7 +1,7 @@
 # SmartAssign — Estado de ejecución
 
 **Se lee al empezar cada sesión. Se actualiza al terminar cada UT.**
-Última actualización: 2026-08-12 · UTs completadas: **63 / 95**
+Última actualización: 2026-08-12 · UTs completadas: **64 / 95**
 
 ## Decisiones de esta sesión que no estaban en los documentos
 
@@ -292,16 +292,17 @@
 
 > **→ PC-4** · El ejemplo del §9.4 completo, con relevo en cadena.
 
-## E10 · Extracción inversa y vacante crítica *(0/6)* → F8
+## E10 · Extracción inversa y vacante crítica *(1/6)* → F8
 
-- [ ] **E10.1** Orden derivado invirtiendo la prioridad — LEE: `00 §A5`, `§9.6`
+- [x] **E10.1** Orden derivado invirtiendo la prioridad — LEE: `00 §A5`, `§9.6`
+  - VERIFICADO: **arranca E10** (desbloqueada — ver nota de abajo). `fn_OrdenExtraccionInversa(linea_solicitante)` reproduce literalmente el orden publicado de §9.6/A5 — activando las 10 líneas, para línea solicitante L4 devuelve exactamente `L10, L9, L3, L5, L7, L6, L2, L1`. Derivación en vivo de `PrioridadLinea` (nunca una lista escrita aparte, §12.6) — función de tabla en línea, mismo patrón que `fn_AlcanceLinea` (E4.3): expone `orden`, quien la consuma hace su propio `ORDER BY ... DESC`. L8 excluida siempre (tiene fila en `PrioridadLinea` pero nunca puede ser donante — está vacía por definición), la línea solicitante excluida de su propio resultado, solo cuentan líneas `activa_hoy=1` (§9.6: "línea ACTIVA"). Probado explícitamente A5b ("L4 SÍ puede ser donante" cuando no es la solicitante) y que cambiar la prioridad con `sp_CambiarPrioridadLinea` (E5.2) se refleja de inmediato sin ninguna sincronización. Deliberadamente solo la derivación del orden — el disparador ("solo con la L8 vacía") es E10.2, el piso de seguridad es E10.3. 6 pruebas nuevas — 376/376 en verde en todo el backend
 - [ ] **E10.2** Solo con la L8 completamente vacía — LEE: `§9.6`
 - [ ] **E10.3** Piso por línea · inmunidad — LEE: `00 §B5`
 - [ ] **E10.4** Escalera C15 N1→N4 + guarda anti-dominó — LEE: `00 §C15`
 - [ ] **E10.5** `JustificacionExcepcion` en toda excepción — LEE: `00 §A6`, `04 §5.4`
 - [ ] **E10.6** Titular reincorporado + salida de retiro temporal — LEE: `00 §C1`, `00 §C2`
 
-> ⚠ **Bloqueada hasta H7:** cerrar `A5b` (si L4 puede ser donante) y `A7-orig` (liderazgo y matriz de categoría).
+> ~~⚠ Bloqueada hasta H7~~ — **desbloqueada.** Verificado al empezar E10.1: `00_DECISIONES.md` ya trae `A5b` y `A7` (`A7-orig`) marcadas 🟢 Cerrada — cliente, con su propio resumen final confirmándolo explícitamente ("A5b/A7-orig ya no aplican — fueron cerradas"). Esta nota de bloqueo había quedado desactualizada de una revisión de H7 anterior a esta sesión; no había ningún hueco real pendiente.
 
 ## E11 · Contingencias y estadística *(0/8)* → F9
 
@@ -397,3 +398,4 @@
 | 2026-08-12 | E9.7 (1) | **`sp_SugerirDestinoRelevado` — escalera de 00 §B4 (misma línea → proximidad A1 → L8), nunca prioridad (A9).** Bug de diseño real atrapado por razonamiento antes de correr ninguna prueba: reutilizar `sp_ValidarAsignacion` completo (como E6.7) habría rechazado SIEMPRE un puesto fatigado por su paso "puesto libre" — un puesto fatigado está ocupado por definición, y el ejemplo normativo de §9.4 dice literal que el relevado "pasa a relevar" a quien está ahí. Compone directamente las reglas de Parte VII que sí aplican (categoría, médica, no-repetición-24h, perfil sin cesión) en vez de las 7 completas. Guarda de reserva de B4 aparte, con `Movimiento.puesto_destino_id`. Probado explícitamente que la proximidad nunca cede ante prioridad (A9). 8 pruebas nuevas — 366/366 en verde en todo el backend |
 | 2026-08-12 | E9.8 (1) | **El ejemplo normativo completo de §9.4 — "capacidad limitada de la L8 y relevo en cadena" — de punta a punta, encadenando E7/E8/E9 sin reimplementar nada.** 5 puestos fatigados (4 L4, 1 L1) con 3 candidatos en el Bolsón → exactamente 3 aceptados, 2 con `SIN_CANDIDATOS_EN_BOLSON` (00 §A8: nunca una categoría de regla por sexo). Al llegar 2 relevistas a L4, sus 2 relevados NO van a la L8 — se les ofrece, uno a cada uno, los 2 puestos que seguían fatigados en su propia línea. Bug de razonamiento propio: `sp_SugerirDestinoRelevado` no reserva nada — pedir destino para ambos relevados sin intercalar la asignación real del primero hacía que las dos consultas coincidieran en el mismo puesto; corregido simulando "el supervisor ejecuta la sugerencia" (§9.4 p6) entre una petición y la siguiente. 2 pruebas nuevas — 368/368 en verde en todo el backend |
 | 2026-08-12 | E9.9 (1) | **E9 completa (9/9). Prueba de arquitectura: el motor de relevos nunca referencia `PrioridadLinea` (00 §A9).** 05 §4.1 pedía un ensamblado C# separado verificable con `NetArchTest` — el backend real vive en T-SQL, no en namespaces .NET, así que la UT lee `OBJECT_DEFINITION` de una LocalDB real y descubre "el motor de relevos" por lo que de verdad lo define (menciona `SolicitudRelevo`/`RelevoDescartado`), sin lista manual. Control positivo: `sp_ArrancarTurno` sí referencia `PrioridadLinea`, prueba que la comprobación no es vacía. 2 pruebas nuevas — 370/370 en verde en todo el backend. **E9 · Motor de relevos cerrada: 9/9** |
+| 2026-08-12 | E10.1 (1) | **Arranca E10 (Extracción inversa y vacante crítica) — desbloqueada: `00_DECISIONES.md` ya traía A5b y A7-orig cerradas por el cliente, la nota de bloqueo de PROGRESO.md había quedado desactualizada.** `fn_OrdenExtraccionInversa` reproduce literalmente el orden publicado de §9.6/A5 (`L10,L9,L3,L5,L7,L6,L2,L1` para L4 solicitante) — derivación en vivo de `PrioridadLinea`, nunca una lista aparte (§12.6). L8 excluida siempre, la solicitante excluida de su propio resultado, solo líneas activas cuentan. Probado A5b ("L4 sí puede ser donante") y que un cambio de prioridad se refleja sin sincronización. 6 pruebas nuevas — 376/376 en verde en todo el backend |
