@@ -29,8 +29,9 @@ appsettings.*.local.json
 Thumbs.db
 .DS_Store
 
-# Skill externo vendorizado - no versionar su .git interno
-.claude/skills/*/.git/
+# Herramientas locales de Claude Code (skills, tareas programadas) — no
+# forman parte de la app, se quedan solo en disco local.
+.claude/
 
 # Android build
 android/.gradle/
