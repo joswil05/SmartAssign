@@ -27,6 +27,8 @@ public class ParoConfig : IEntityTypeConfiguration<Paro>
         b.Property(x => x.ReanudadoPor).HasColumnName("reanudado_por");
 
         b.HasOne(x => x.JornadaLinea).WithMany().HasForeignKey(x => x.JornadaLineaId).OnDelete(DeleteBehavior.Restrict);
+        // E11.5: Lote ya existe — FK real (E11.1/E11.2 lo dejaron dicho pendiente).
+        b.HasOne(x => x.Lote).WithMany().HasForeignKey(x => x.LoteId).OnDelete(DeleteBehavior.Restrict);
         b.HasOne(x => x.Categoria).WithMany().HasForeignKey(x => x.CategoriaId).OnDelete(DeleteBehavior.Restrict);
         b.HasOne(x => x.Causa).WithMany().HasForeignKey(x => x.CausaId).OnDelete(DeleteBehavior.Restrict);
         b.HasOne(x => x.Registrante).WithMany().HasForeignKey(x => x.RegistradoPor).OnDelete(DeleteBehavior.Restrict);

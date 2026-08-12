@@ -10,11 +10,6 @@ public class Paro
     public int Id { get; set; }
     public int JornadaLineaId { get; set; }
 
-    /// <summary>
-    /// Sin FK todavía: <c>Lote</c> no existe hasta E11.5 (00 §C5). Se
-    /// añade la referencia real en esa UT (mismo criterio incremental
-    /// que <c>CK_Mov_motivo</c> en E10.3).
-    /// </summary>
     public int? LoteId { get; set; }
 
     public short CategoriaId { get; set; }
@@ -32,6 +27,7 @@ public class Paro
     public int? ReanudadoPor { get; set; }
 
     public JornadaLinea JornadaLinea { get; set; } = default!;
+    public Lote? Lote { get; set; }
     public CategoriaParo Categoria { get; set; } = default!;
     public CausaParo Causa { get; set; } = default!;
     public Usuario Registrante { get; set; } = default!;
