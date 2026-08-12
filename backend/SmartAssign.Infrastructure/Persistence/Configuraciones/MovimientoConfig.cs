@@ -15,7 +15,7 @@ public class MovimientoConfig : IEntityTypeConfiguration<Movimiento>
             t.HasCheckConstraint("CK_Mov_motivo", "motivo IN (" +
                 "'relevo','reasignacion_relevado','liberacion_bolson','paro'," +
                 "'cambio_sku','linea_inactiva','rechazo_recepcion'," +
-                "'intervencion_coordinador','cobertura_vacante_critica')");
+                "'intervencion_coordinador','cobertura_vacante_critica','extraccion_inversa')"); // extraccion_inversa: E10.3
             // C10: todo rechazo de recepción lleva motivo — sin él, rechazar
             // se vuelve un canal silencioso para esquivar relevos.
             t.HasCheckConstraint("CK_Mov_rechazo", "estado <> 'rechazado' OR motivo_rechazo_id IS NOT NULL");
