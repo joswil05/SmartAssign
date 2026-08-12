@@ -38,6 +38,10 @@ builder.Services.AddHostedService<EventoSalienteDispatcher>();
 // el adaptador real reemplaza este registro cuando el cliente las entregue.
 builder.Services.AddSingleton<IServicioNotificacionesPush, ServicioNotificacionesPushSinConfigurar>();
 builder.Services.AddHostedService<NotificacionDispatcher>();
+// E12.6: escala al Coordinador (AlertaCoordinadorEvento, vía la misma
+// bandeja de salida de E12.3) toda notificación crítica sin acuse a
+// tiempo — "supervisor no localizable" (D5).
+builder.Services.AddHostedService<EscaladoDeNotificacionesDispatcher>();
 
 // ─── Identidad y aislamiento (etapa E2) ─────────────────────────────────
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.Seccion));
