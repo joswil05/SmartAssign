@@ -48,6 +48,7 @@ public class SmartAssignDbContext : DbContext
     public DbSet<Paro> Paros => Set<Paro>();
     public DbSet<Lote> Lotes => Set<Lote>();
     public DbSet<Desperdicio> Desperdicios => Set<Desperdicio>();
+    public DbSet<ProduccionAvance> ProduccionAvances => Set<ProduccionAvance>();
 
     /// <summary>
     /// Mapea la función SQL de la etapa E5 (§5.3) para poder usarla desde
