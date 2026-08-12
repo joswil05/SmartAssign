@@ -45,6 +45,7 @@ public class SmartAssignDbContext : DbContext
     public DbSet<Movimiento> Movimientos => Set<Movimiento>();
     public DbSet<SolicitudRelevo> SolicitudesRelevo => Set<SolicitudRelevo>();
     public DbSet<RelevoDescartado> RelevosDescartados => Set<RelevoDescartado>();
+    public DbSet<Paro> Paros => Set<Paro>();
 
     /// <summary>
     /// Mapea la función SQL de la etapa E5 (§5.3) para poder usarla desde
