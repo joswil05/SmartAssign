@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SmartAssign.Api.Endpoints;
+using SmartAssign.Api.Hubs;
 using SmartAssign.Api.Seguridad;
 using SmartAssign.Application.Asignaciones;
 using SmartAssign.Application.Autenticacion;
@@ -22,6 +23,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+// ─── Canal en vivo (etapa E12, 05 §2.4) ─────────────────────────────────
+builder.Services.AddSignalR();
 
 // ─── Identidad y aislamiento (etapa E2) ─────────────────────────────────
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.Seccion));
@@ -61,6 +65,22 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             // RequireRole()/IsInRole() sin reinventar la comprobación.
             RoleClaimType = ClaimsSmartAssign.Rol,
             NameClaimType = ClaimsSmartAssign.UsuarioId,
+        };
+        // SignalR (E12.1): el transporte WebSocket/SSE no puede fijar el
+        // header Authorization, así que el cliente manda el access token
+        // por querystring — SOLO se acepta esa vía para /hub, nunca para
+        // el resto de la Api (04 §6.4: el token sigue viajando por header
+        // en cada endpoint REST normal).
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(accessToken) && context.HttpContext.Request.Path.StartsWithSegments("/hub"))
+                    context.Token = accessToken;
+
+                return Task.CompletedTask;
+            }
         };
     });
 
@@ -105,6 +125,7 @@ app.MapLineaEndpoints();
 app.MapServidorEndpoints();
 app.MapPersonalEndpoints();
 app.MapAsignacionEndpoints();
+app.MapHub<PlantaHub>("/hub/planta");
 
 app.Run();
 
