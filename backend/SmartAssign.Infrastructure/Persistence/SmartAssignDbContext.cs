@@ -50,6 +50,7 @@ public class SmartAssignDbContext : DbContext
     public DbSet<Desperdicio> Desperdicios => Set<Desperdicio>();
     public DbSet<ProduccionAvance> ProduccionAvances => Set<ProduccionAvance>();
     public DbSet<EventoSaliente> EventosSalientes => Set<EventoSaliente>();
+    public DbSet<Notificacion> Notificaciones => Set<Notificacion>();
 
     /// <summary>
     /// Mapea la función SQL de la etapa E5 (§5.3) para poder usarla desde

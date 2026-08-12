@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using SmartAssign.Api.Notificaciones;
 using SmartAssign.Infrastructure.Persistence;
 
 namespace Api.IntegrationTests;
@@ -29,6 +31,15 @@ public class SmartAssignApiFactory : WebApplicationFactory<Program>, IAsyncLifet
             {
                 ["ConnectionStrings:SmartAssignDb"] = CadenaConexion,
             });
+        });
+
+        // E12.4: no hay credenciales reales de Firebase en CI — el único
+        // servicio "externo" que esta suite reemplaza, para poder
+        // observar NotificacionDispatcher entregando de punta a punta en
+        // vez de quedarse pendiente para siempre contra el stub real.
+        builder.ConfigureTestServices(services =>
+        {
+            services.AddSingleton<IServicioNotificacionesPush, ServicioNotificacionesPushDeCaptura>();
         });
     }
 

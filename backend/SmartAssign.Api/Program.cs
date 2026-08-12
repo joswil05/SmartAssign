@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SmartAssign.Api.Endpoints;
 using SmartAssign.Api.Hubs;
+using SmartAssign.Api.Notificaciones;
 using SmartAssign.Api.Seguridad;
 using SmartAssign.Api.TiempoReal;
 using SmartAssign.Application.Asignaciones;
@@ -31,6 +32,12 @@ builder.Services.AddSignalR();
 // hacia PlantaHub — la garantía transaccional la dio sp_EncolarEvento al
 // escribir, este servicio solo entrega lo que ya quedó confirmado.
 builder.Services.AddHostedService<EventoSalienteDispatcher>();
+
+// ─── FCM como campana vacía (E12.4, D5/05 §2.5) ─────────────────────────
+// Sin credenciales reales de Firebase todavía (mismo hueco que D6/AD) —
+// el adaptador real reemplaza este registro cuando el cliente las entregue.
+builder.Services.AddSingleton<IServicioNotificacionesPush, ServicioNotificacionesPushSinConfigurar>();
+builder.Services.AddHostedService<NotificacionDispatcher>();
 
 // ─── Identidad y aislamiento (etapa E2) ─────────────────────────────────
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.Seccion));
@@ -130,6 +137,8 @@ app.MapLineaEndpoints();
 app.MapServidorEndpoints();
 app.MapPersonalEndpoints();
 app.MapAsignacionEndpoints();
+app.MapNotificacionEndpoints();
+app.MapDispositivoPushEndpoints();
 app.MapHub<PlantaHub>("/hub/planta");
 
 app.Run();
