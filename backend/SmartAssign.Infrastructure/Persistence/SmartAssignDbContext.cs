@@ -43,6 +43,7 @@ public class SmartAssignDbContext : DbContext
     public DbSet<UltimaTareaJornada> UltimasTareasJornada => Set<UltimaTareaJornada>();
     public DbSet<OperacionIdempotente> OperacionesIdempotentes => Set<OperacionIdempotente>();
     public DbSet<Movimiento> Movimientos => Set<Movimiento>();
+    public DbSet<SolicitudRelevo> SolicitudesRelevo => Set<SolicitudRelevo>();
 
     /// <summary>
     /// Mapea la función SQL de la etapa E5 (§5.3) para poder usarla desde
