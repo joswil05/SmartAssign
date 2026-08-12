@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using SmartAssign.Api.Endpoints;
 using SmartAssign.Api.Hubs;
 using SmartAssign.Api.Seguridad;
+using SmartAssign.Api.TiempoReal;
 using SmartAssign.Application.Asignaciones;
 using SmartAssign.Application.Autenticacion;
 using SmartAssign.Application.Seguridad;
@@ -26,6 +27,10 @@ builder.Services.AddOpenApi();
 
 // ─── Canal en vivo (etapa E12, 05 §2.4) ─────────────────────────────────
 builder.Services.AddSignalR();
+// Bandeja de salida transaccional (E12.3, 05 §4.1): drena EventoSaliente
+// hacia PlantaHub — la garantía transaccional la dio sp_EncolarEvento al
+// escribir, este servicio solo entrega lo que ya quedó confirmado.
+builder.Services.AddHostedService<EventoSalienteDispatcher>();
 
 // ─── Identidad y aislamiento (etapa E2) ─────────────────────────────────
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.Seccion));
