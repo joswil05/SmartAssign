@@ -1,7 +1,7 @@
 # SmartAssign — Estado de ejecución
 
 **Se lee al empezar cada sesión. Se actualiza al terminar cada UT.**
-Última actualización: 2026-08-12 · UTs completadas: **59 / 95**
+Última actualización: 2026-08-12 · UTs completadas: **63 / 95**
 
 ## Decisiones de esta sesión que no estaban en los documentos
 
