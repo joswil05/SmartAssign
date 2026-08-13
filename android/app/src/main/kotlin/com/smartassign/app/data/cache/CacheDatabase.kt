@@ -8,8 +8,8 @@ import androidx.room.RoomDatabase
  * SQLCipher — ver `CacheModule`, que es el único sitio que la construye.
  */
 @Database(
-    entities = [PersonaCacheadaEntity::class, RestriccionCacheadaEntity::class],
-    version = 1,
+    entities = [PersonaCacheadaEntity::class, RestriccionCacheadaEntity::class, AlcanceCacheEntity::class],
+    version = 2,
     exportSchema = false
 )
 abstract class CacheDatabase : RoomDatabase() {

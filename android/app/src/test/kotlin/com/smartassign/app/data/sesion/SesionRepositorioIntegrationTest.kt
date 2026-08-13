@@ -42,6 +42,19 @@ class SesionRepositorioIntegrationTest {
 
     private val urlServidor = "http://localhost:5081/"
 
+    /**
+     * La purga de la caché cifrada (E13.2, 00 §D3) se prueba de verdad en
+     * `CacheAcotadaALineaTest` (instrumentada, con SQLCipher real). Aquí
+     * basta con registrar si se llamó: estas pruebas corren en JVM contra
+     * la Api real, sin emulador, y no pueden abrir una base cifrada.
+     */
+    private class PurgaCacheDePrueba : PurgaCacheLocal {
+        var veces = 0
+        override suspend fun purgar() { veces++ }
+    }
+
+    private val purgaCache = PurgaCacheDePrueba()
+
     private fun nuevoRepositorio(local: SesionLocal = FakeSesionLocal()): SesionRepositorio {
         local.guardarServidorUrl(urlServidor)
         val json = Json { ignoreUnknownKeys = true }
@@ -61,7 +74,7 @@ class SesionRepositorioIntegrationTest {
             .connectTimeout(5, TimeUnit.SECONDS)
             .readTimeout(5, TimeUnit.SECONDS)
             .build()
-        return SesionRepositorioImpl(api, local, json, clienteCrudo)
+        return SesionRepositorioImpl(api, local, json, clienteCrudo, purgaCache)
     }
 
     @Test
@@ -176,6 +189,11 @@ class SesionRepositorioIntegrationTest {
 
         assertNull(local.tokens())
         assertNull(local.identidad())
+        // E13.2 / 00 §D3: purgar la caché cifrada es parte de cerrar
+        // sesión, no un paso aparte que la interfaz deba recordar. El
+        // teléfono es compartido por línea (D6) — sin esto, el siguiente
+        // usuario hereda los datos médicos del anterior.
+        assertEquals(1, purgaCache.veces)
     }
 
     @Test

@@ -23,7 +23,8 @@ class SesionRepositorioImpl @Inject constructor(
     private val api: AuthApi,
     private val local: SesionLocal,
     private val json: Json,
-    @ClienteCrudo private val clienteCrudo: OkHttpClient
+    @ClienteCrudo private val clienteCrudo: OkHttpClient,
+    private val purgaCache: PurgaCacheLocal
 ) : SesionRepositorio {
 
     override suspend fun verificarServidor(url: String): Boolean = withContext(Dispatchers.IO) {
@@ -100,6 +101,12 @@ class SesionRepositorioImpl @Inject constructor(
             }
         }
         local.limpiarSesion()
+        // E13.2 / 00 §D3: la caché cifrada se purga TAMBIÉN, no solo las
+        // preferencias. El teléfono es compartido por línea (D6): sin
+        // esto, el siguiente usuario heredaba los datos médicos del
+        // anterior. Va después de `limpiarSesion()` a propósito — si algo
+        // fallara aquí, la sesión ya quedó cerrada de todas formas.
+        purgaCache.purgar()
     }
 
     override fun identidadGuardada(): IdentidadGuardada? = local.identidad()

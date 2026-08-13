@@ -21,9 +21,34 @@ import androidx.room.PrimaryKey
  *
  * El ALCANCE de lo que puede entrar aquí (solo su línea + los
  * físicamente presentes en ella, **nunca el padrón completo**, y el
- * Coordinador nunca cachea restricciones médicas) es la regla de D3 que
- * construye **E13.2** — esta UT solo levanta el almacén cifrado.
+ * Coordinador nunca cachea restricciones médicas) lo impone
+ * <see cref="AlcanceCacheEntity"/> + `CachePersonalRepositorio` (E13.2).
  */
+/**
+ * UT-E13.2 — el alcance al que pertenece TODA la caché. Fila única
+ * (`id = 1`), no una columna por persona, y eso es deliberado: si el
+ * alcance fuera por fila, cachear a alguien de otra línea sería un error
+ * posible que alguien tendría que acordarse de no cometer. Siendo del
+ * almacén entero, la pregunta *"¿puede colarse el padrón completo?"*
+ * tiene una respuesta estructural: no hay dónde ponerlo — la caché sirve
+ * a una línea y a un rol, y si cualquiera de los dos cambia se purga
+ * entera antes de escribir nada (00 §D3, "purga... al reasignar línea").
+ *
+ * `rol` se guarda junto a la línea porque D3 le da al Coordinador una
+ * regla propia: su dispositivo **no cachea restricciones médicas**.
+ */
+@Entity(tableName = "alcance_cache")
+data class AlcanceCacheEntity(
+    @PrimaryKey val id: Int = FILA_UNICA,
+    val rol: String,
+    val lineaId: Int?,
+    val abiertoEn: Long
+) {
+    companion object {
+        const val FILA_UNICA = 1
+    }
+}
+
 @Entity(tableName = "persona_cacheada")
 data class PersonaCacheadaEntity(
     @PrimaryKey val personalId: Int,

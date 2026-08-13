@@ -54,4 +54,29 @@ interface CacheDao {
      */
     @Query("DELETE FROM persona_cacheada")
     suspend fun purgarTodo()
+
+    // ═══ Alcance de la caché (E13.2, 00 §D3) ═══
+
+    @Query("SELECT * FROM alcance_cache WHERE id = 1")
+    suspend fun alcance(): AlcanceCacheEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun guardarAlcance(alcance: AlcanceCacheEntity)
+
+    @Query("DELETE FROM alcance_cache")
+    suspend fun borrarAlcance()
+
+    /**
+     * Purga total: personas (con sus restricciones por cascada) **y** el
+     * alcance. D3 la exige "al cerrar sesión, al cerrar turno, al
+     * reasignar línea, y por inactividad configurable". Borrar el
+     * alcance junto con los datos importa: una caché vacía pero todavía
+     * "abierta" a una línea aceptaría escrituras nuevas sin que nadie
+     * volviera a declarar para quién.
+     */
+    @Transaction
+    suspend fun purgarTodoYAlcance() {
+        purgarTodo()
+        borrarAlcance()
+    }
 }
