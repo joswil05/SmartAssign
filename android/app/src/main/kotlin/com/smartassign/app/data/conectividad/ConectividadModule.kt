@@ -12,4 +12,8 @@ abstract class ConectividadModule {
     @Binds
     @Singleton
     abstract fun conectividadRepositorio(impl: ConectividadRepositorioImpl): ConectividadRepositorio
+
+    @Binds
+    @Singleton
+    abstract fun conexionTiempoReal(impl: PlantaHubConectividad): ConexionTiempoReal
 }

@@ -1,6 +1,7 @@
 // SmartAssign — módulo app. Stack completo en docs/05_TRD.md §1.5.
 // Red + Hilt + almacenamiento cifrado + CameraX/ML Kit entran en E6.3.
-// Room/SQLCipher (caché sin conexión) entran en E13.1; SignalR en E13.5.
+// Room/SQLCipher (caché sin conexión) entran en E13.1; SignalR en E13.5,
+// solo como señal de conectividad (05 §4.3) — no consume eventos todavía.
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -91,6 +92,11 @@ dependencies {
     ksp(libs.room.compiler)
     implementation(libs.sqlcipher.android)
     implementation(libs.androidx.sqlite)
+
+    // E13.5 — señal de conectividad por latido + estado de la conexión
+    // SignalR (05 §4.3): "no basta con NetworkCapabilities... se usa un
+    // latido contra el servidor y el estado de la conexión SignalR".
+    implementation(libs.signalr.client)
 
     implementation(libs.camerax.core)
     implementation(libs.camerax.camera2)

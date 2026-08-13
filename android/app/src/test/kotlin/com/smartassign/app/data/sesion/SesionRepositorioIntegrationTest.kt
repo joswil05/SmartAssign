@@ -1,6 +1,7 @@
 package com.smartassign.app.data.sesion
 
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import com.smartassign.app.data.conectividad.ConexionTiempoReal
 import com.smartassign.app.data.red.AuthApi
 import com.smartassign.app.data.red.InterceptorAutorizacion
 import com.smartassign.app.data.red.InterceptorUrlServidor
@@ -55,6 +56,23 @@ class SesionRepositorioIntegrationTest {
 
     private val purgaCache = PurgaCacheDePrueba()
 
+    /**
+     * `PlantaHubConectividad` (E13.5) abre un `HubConnection` real —
+     * fuera de alcance de una prueba de JVM que solo ejercita el ciclo de
+     * sesión sobre HTTP. Se prueba de verdad en
+     * `PlantaHubConectividadIntegrationTest`.
+     */
+    private class ConexionTiempoRealDePrueba : ConexionTiempoReal {
+        var vecesConectado = 0
+        var vecesDesconectado = 0
+        private var conectado = false
+        override suspend fun conectar() { vecesConectado++; conectado = true }
+        override suspend fun desconectar() { vecesDesconectado++; conectado = false }
+        override fun estaConectado() = conectado
+    }
+
+    private val conexionTiempoReal = ConexionTiempoRealDePrueba()
+
     private fun nuevoRepositorio(local: SesionLocal = FakeSesionLocal()): SesionRepositorio {
         local.guardarServidorUrl(urlServidor)
         val json = Json { ignoreUnknownKeys = true }
@@ -74,7 +92,7 @@ class SesionRepositorioIntegrationTest {
             .connectTimeout(5, TimeUnit.SECONDS)
             .readTimeout(5, TimeUnit.SECONDS)
             .build()
-        return SesionRepositorioImpl(api, local, json, clienteCrudo, purgaCache)
+        return SesionRepositorioImpl(api, local, json, clienteCrudo, purgaCache, conexionTiempoReal)
     }
 
     @Test
@@ -96,6 +114,9 @@ class SesionRepositorioIntegrationTest {
 
         assertTrue(resultado is ResultadoAuth.Ok)
         assertEquals("coordinador", (resultado as ResultadoAuth.Ok).rol)
+        // UT-E13.5: un login exitoso arranca PlantaHub — no hace falta
+        // esperar al ConectividadTicker para la primera conexión.
+        assertEquals(1, conexionTiempoReal.vecesConectado)
     }
 
     @Test
@@ -105,6 +126,8 @@ class SesionRepositorioIntegrationTest {
 
         assertTrue(resultado is ResultadoAuth.Rechazo)
         assertEquals("CREDENCIALES_INVALIDAS", (resultado as ResultadoAuth.Rechazo).codigo)
+        // Un rechazo no es un login exitoso — nada que conectar todavía.
+        assertEquals(0, conexionTiempoReal.vecesConectado)
     }
 
     @Test
@@ -194,6 +217,9 @@ class SesionRepositorioIntegrationTest {
         // teléfono es compartido por línea (D6) — sin esto, el siguiente
         // usuario hereda los datos médicos del anterior.
         assertEquals(1, purgaCache.veces)
+        // UT-E13.5: PlantaHub no puede seguir abierto a nombre de una
+        // sesión que ya no existe en un teléfono compartido (D6).
+        assertEquals(1, conexionTiempoReal.vecesDesconectado)
     }
 
     @Test

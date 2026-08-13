@@ -1,5 +1,6 @@
 package com.smartassign.app.data.sesion
 
+import com.smartassign.app.data.conectividad.ConexionTiempoReal
 import com.smartassign.app.data.red.AuthApi
 import com.smartassign.app.data.red.ClienteCrudo
 import com.smartassign.app.data.red.ErrorSesion
@@ -24,7 +25,8 @@ class SesionRepositorioImpl @Inject constructor(
     private val local: SesionLocal,
     private val json: Json,
     @ClienteCrudo private val clienteCrudo: OkHttpClient,
-    private val purgaCache: PurgaCacheLocal
+    private val purgaCache: PurgaCacheLocal,
+    private val conexionTiempoReal: ConexionTiempoReal
 ) : SesionRepositorio {
 
     override suspend fun verificarServidor(url: String): Boolean = withContext(Dispatchers.IO) {
@@ -54,7 +56,7 @@ class SesionRepositorioImpl @Inject constructor(
         withContext(Dispatchers.IO) {
             try {
                 val respuesta = api.login(LoginRequest(username, password, local.deviceId()))
-                manejarRespuestaSesion(respuesta)
+                manejarRespuestaSesion(respuesta).tambienConectarSiHuboExito()
             } catch (_: IOException) {
                 ResultadoAuth.SinConexion
             }
@@ -64,7 +66,7 @@ class SesionRepositorioImpl @Inject constructor(
         val refresh = local.tokens()?.refreshToken ?: return@withContext ResultadoAuth.Rechazo("REFRESH_INVALIDO")
         try {
             val respuesta = api.refresh(RefreshRequest(refresh, local.deviceId()))
-            manejarRespuestaSesion(respuesta, conservarRefreshPrevio = true)
+            manejarRespuestaSesion(respuesta, conservarRefreshPrevio = true).tambienConectarSiHuboExito()
         } catch (_: IOException) {
             ResultadoAuth.SinConexion
         }
@@ -75,10 +77,22 @@ class SesionRepositorioImpl @Inject constructor(
             ?: return@withContext ResultadoAuth.Rechazo("PIN_NO_CONFIGURADO")
         try {
             val respuesta = api.pin(PinRequest(usuarioId, pin, local.deviceId()))
-            manejarRespuestaSesion(respuesta, conservarRefreshPrevio = true)
+            manejarRespuestaSesion(respuesta, conservarRefreshPrevio = true).tambienConectarSiHuboExito()
         } catch (_: IOException) {
             ResultadoAuth.SinConexion
         }
+    }
+
+    /**
+     * UT-E13.5: arranca `PlantaHub` en cuanto hay tokens de verdad — no
+     * hace falta esperar al `ConectividadTicker` (hasta 15 s de margen)
+     * para la primera conexión de la sesión. Un fallo de conexión aquí
+     * no vuelve a fallar el login: `ConexionTiempoReal.conectar()` ya es
+     * silenciosa por diseño (`PlantaHubConectividad`), y el ticker
+     * reintenta solo.
+     */
+    private suspend fun ResultadoAuth.tambienConectarSiHuboExito(): ResultadoAuth = also {
+        if (it is ResultadoAuth.Ok) conexionTiempoReal.conectar()
     }
 
     override suspend fun quienSoy(): QuienSoy? = withContext(Dispatchers.IO) {
@@ -107,6 +121,11 @@ class SesionRepositorioImpl @Inject constructor(
         // anterior. Va después de `limpiarSesion()` a propósito — si algo
         // fallara aquí, la sesión ya quedó cerrada de todas formas.
         purgaCache.purgar()
+        // E13.5: sin esto, PlantaHub seguiría con el JWT de la sesión que
+        // se acaba de cerrar — el mismo teléfono compartido (D6) al que
+        // se le purgó la caché no puede quedarse con el canal en vivo
+        // abierto a nombre de otra persona.
+        conexionTiempoReal.desconectar()
     }
 
     override fun identidadGuardada(): IdentidadGuardada? = local.identidad()
