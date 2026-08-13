@@ -20,6 +20,8 @@ import com.smartassign.app.ui.arranque.ArranqueScreen
 import com.smartassign.app.ui.destinos.PanelBolsonScreen
 import com.smartassign.app.ui.destinos.PanelPlantaScreen
 import com.smartassign.app.ui.destinos.SinLineaScreen
+import com.smartassign.app.ui.frescura.BannerSinSincronizar
+import com.smartassign.app.ui.frescura.BannerSinSincronizarViewModel
 import com.smartassign.app.ui.login.LoginScreen
 import com.smartassign.app.ui.malla.MallaLineaScreen
 import com.smartassign.app.ui.navegacion.Rutas
@@ -55,15 +57,24 @@ class MainActivity : ComponentActivity() {
  * este punto del árbol, resuelve contra el propio `ComponentActivity`
  * (no contra un destino del grafo), así que sobrevive intacto a cualquier
  * navegación — se reinicia solo si la Activity misma se recrea.
+ *
+ * UT-E13.4 añade [BannerSinSincronizar] con el mismo criterio, colgado
+ * **por encima** de [CronometroDeParo] — 03 §3.8, literal: la barra del
+ * cronómetro va *"por debajo del banner de conexión si ambos están
+ * activos"*. Es el banner que el propio docstring de E11.3 dejó anotado
+ * como pendiente.
  */
 @Composable
 fun GrafoDeNavegacion(
     controlador: NavHostController = rememberNavController(),
-    cronometroViewModel: CronometroDeParoViewModel = hiltViewModel()
+    cronometroViewModel: CronometroDeParoViewModel = hiltViewModel(),
+    bannerViewModel: BannerSinSincronizarViewModel = hiltViewModel()
 ) {
     val paroActivo by cronometroViewModel.paro.collectAsState()
+    val mostrarBanner by bannerViewModel.mostrarBanner.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
+        BannerSinSincronizar(visible = mostrarBanner)
         CronometroDeParo(paro = paroActivo)
 
         NavHost(
