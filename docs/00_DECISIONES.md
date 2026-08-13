@@ -260,6 +260,36 @@ Al implementar A12 apareció una precisión que ninguna fuente resolvía: el mod
 
 *Impacta:* 04 (`Puesto.horas_en_puesto`, `TipoActividad` sin bandera).
 
+## A15 · Azul de acción y tamaño del rótulo de botón — 🟢 Cerrada — cliente (delegada)
+
+**Origen: un bug real y visible, no una revisión de diseño.** Al abrir la app en el emulador durante E13.1 se vio que **todo** el texto se pintaba negro sobre el fondo `#0E1116` — **1.10:1, cuando `03 §5.2` exige 7:1**. Ninguna de las 51 pruebas instrumentadas lo detectó: `assertIsDisplayed()` consulta el árbol semántico, que era correcto, y nunca evalúa con qué color se rasteriza.
+
+La causa raíz no era de diseño sino de cableado (corregida aparte, sin decisión de negocio): los estilos tipográficos declaran tamaño y peso pero **no color** —correcto, el color es un token aparte— y sin un `Surface` que fije el color de contenido, Compose usaba el negro por defecto de Material3.
+
+**Lo que sí era decisión de negocio se consultó, y el cliente la delegó:** *"decide lo que beneficie la interfaz y la experiencia de usuario"*. Se resolvió con aritmética, no con criterio estético.
+
+### El problema no admitía una solución solo cromática
+
+Sobre `bg.base` (`#0E1116`, luminancia 0.0055), las dos reglas de `03 §5.2` **se excluyen entre sí**:
+
+| Regla | Exige del azul |
+|---|---|
+| Texto a **7:1** (texto normal) | luminancia **≤ 0.100** — aun con blanco puro |
+| Elemento de interfaz a **3:1** (que el botón se vea) | luminancia **≥ 0.1166** |
+
+**La ventana es vacía: ningún color cumple las dos.** Oscurecer el token por sí solo habría hecho el rótulo legible dentro de un botón que se pierde contra el fondo — cambiar un problema de accesibilidad por otro.
+
+### Resolución: las dos mitades
+
+1. **`color.accion.primaria`: `#2F6FED` → `#145DEB`.** Mismo tono (220°) y saturación (84 %), solo más profundo. Es el punto que maximiza el contraste del rótulo (4.19 → **5.15:1**) conservando **3.42:1** de botón contra fondo, con margen sobre el mínimo de 3:1.
+2. **`type.action`, token nuevo: rótulo de botón a 24 sp** (antes `type.caption`, 16 sp). A ≥ 24 sp el umbral aplicable pasa a 4.5:1, superado con holgura.
+
+El cambio de tamaño no es un rodeo para esquivar la norma: **corrige una incongruencia del propio brief.** `03 §5.1` deja la acción primaria en 64 dp *"porque es la que más se usa y la que menos puede fallar"*, y `§2.2` justifica el cuerpo en 18 sp porque *"se lee de pie, en movimiento, a distancia de brazo"*. El control más importante de la aplicación llevaba el penúltimo tamaño de la escala.
+
+> **Guarda contra regresión:** `TemaAplicadoContrasteTest` (7 pruebas instrumentadas) lee `LocalContentColor` **real** dentro del tema, no solo el `colorScheme`. La distinción importa: durante el arreglo el `colorScheme` ya era correcto mientras la pantalla seguía ilegible.
+
+*Impacta:* 03 (§2.1, §2.2).
+
 ## A9b · Vigencia del anexo de arquitectura — 🟡 Supuesto declarado
 
 El anexo se declara complementario a la v3.0 y la especificación vigente es la v3.3. **Se procede asumiendo que sigue vigente**: solo prescribe plataforma (Android nativo, SQL Server, API intermedia obligatoria) y nada de eso fue tocado entre v3.0 y v3.3.

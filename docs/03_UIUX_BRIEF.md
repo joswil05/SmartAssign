@@ -75,7 +75,7 @@ Cinco estados que **nunca** pueden confundirse entre sí. Cada uno tiene color, 
 
 | Token | Color | Uso |
 |---|---|---|
-| `color.accion.primaria` | `#2F6FED` | Botón de acción principal |
+| `color.accion.primaria` | `#145DEB` | Botón de acción principal *(A15)* |
 | `color.exito` | `#3FA76A` | Confirmación completada |
 | `color.alerta` | `#D9822B` | Advertencia no bloqueante |
 | `color.peligro` | `#E5484D` | Rechazo, restricción médica, paro |
@@ -84,6 +84,8 @@ Cinco estados que **nunca** pueden confundirse entre sí. Cada uno tiene color, 
 | `color.transito` | `#7B5CD6` | Persona en tránsito, puesto reservado |
 
 > **Por qué las restricciones médicas tienen color propio** *(§7.2, §12.2)*: es la única información de la app cuyo malentendido produce daño físico a una persona. No comparte color con ninguna otra alerta para que nunca se confunda con un aviso operativo ordinario. Y aun así **nunca se comunica solo con ese color**: siempre lleva icono y texto explícito (principio 4).
+
+> **A15 · Por qué `color.accion.primaria` se oscureció de `#2F6FED` a `#145DEB`.** Mismo tono (220°) y misma saturación (84 %), solo más profundo. El azul original dejaba el rótulo del botón en **4.19:1**, por debajo de los 4.5:1 que §5.2 pide incluso a texto grande. La corrección no pudo ser solo cromática: sobre `bg.base` (`#0E1116`, luminancia 0.0055) las dos reglas de §5.2 **se excluyen entre sí** — para que el texto alcance 7:1 el azul necesita luminancia ≤ 0.100 (aun con blanco puro), y para que el botón se distinga del fondo a 3:1 necesita ≥ 0.1166. *Ningún color cumple las dos.* `#145DEB` es el punto que maximiza el contraste del rótulo (**5.15:1**) conservando **3.42:1** de botón contra fondo; el resto del camino lo hace `type.action` (§2.2), que lleva el rótulo al rango de texto grande. Un azul más oscuro haría el texto más legible dentro de un botón que se pierde contra el fondo — cambiar un problema de accesibilidad por otro.
 
 ## 2.2 Escala tipográfica
 
@@ -96,11 +98,14 @@ Fuente: **Roboto** (sistema Android, sin descarga externa — §12.1 prohíbe de
 | `type.subtitle` | 20 sp | 600 | Nombre de persona en tarjeta |
 | `type.body` | 18 sp | 400 | Texto general |
 | `type.body.strong` | 18 sp | 600 | Dato que se lee de un vistazo |
+| `type.action` | 24 sp | 600 | **Rótulo de botón** *(A15)* |
 | `type.caption` | 16 sp | 400 | Micro-copia contextual |
 | `type.label` | 15 sp | 600 | Etiquetas, todo en mayúsculas |
 | `type.mono` | 18 sp | 500 | Número de ficha, identificador de puesto |
 
 > **Por qué el cuerpo es 18 sp y no los 14–16 habituales** *(§12.3)*: se lee de pie, en movimiento, a distancia de brazo, con la pantalla a brillo parcial. **No se define ningún tamaño por debajo de 15 sp** en toda la aplicación. Si un contenido no cabe a 15 sp, el problema es el contenido, no el tamaño.
+>
+> **A15 · Por qué el rótulo de botón tiene token propio a 24 sp.** Dos razones que apuntan al mismo sitio. **Contraste:** §5.2 fija 4.5:1 para texto ≥ 24 sp y 7:1 para el resto; sobre `color.accion.primaria` el 7:1 es inalcanzable sin que el botón desaparezca contra el fondo (ver la nota de A15 en §2.1), así que el rótulo entra al rango de texto grande — donde 5.15:1 cumple con holgura. **Proporción:** §5.1 deja la acción primaria en 64 dp *"porque es la que más se usa y la que menos puede fallar"*, y este mismo apartado justifica el cuerpo en 18 sp porque se lee de pie y en movimiento. Antes de A15 el rótulo usaba `type.caption` (16 sp): el control más importante de la aplicación llevaba el penúltimo tamaño de la escala, lo que contradecía ese razonamiento.
 >
 > El escalado tipográfico del sistema se respeta hasta el 130 % sin que se rompa ningún layout.
 
