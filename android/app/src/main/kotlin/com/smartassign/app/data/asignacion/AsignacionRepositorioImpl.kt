@@ -1,5 +1,7 @@
 package com.smartassign.app.data.asignacion
 
+import com.smartassign.app.data.conectividad.ConectividadRepositorio
+import com.smartassign.app.data.conectividad.EstadoConectividad
 import com.smartassign.app.data.red.AsignacionApi
 import com.smartassign.app.data.red.AsignarPeticionRequest
 import com.smartassign.app.data.red.RechazoAsignacionResponse
@@ -11,10 +13,20 @@ import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * `asignarPersona` es, hoy, el único camino real de escritura que existe
+ * en el cliente Android (`sp_AsignarPersona`, E6.8) — mover personal
+ * entre líneas (la otra mitad literal de §12.1) todavía no tiene
+ * pantalla propia (`ui/destinos` sigue siendo un placeholder). Por eso el
+ * bloqueo de E13.3 se demuestra aquí, y no en un lugar que no existe
+ * todavía — mismo criterio de alcance que E12.3 demostró la bandeja de
+ * salida con un solo productor real en vez de cablear los ~8 restantes.
+ */
 @Singleton
 class AsignacionRepositorioImpl @Inject constructor(
     private val api: AsignacionApi,
-    private val json: Json
+    private val json: Json,
+    private val conectividad: ConectividadRepositorio
 ) : AsignacionRepositorio {
 
     override suspend fun sugerirPuesto(personalId: Int): ResultadoSugerencia = withContext(Dispatchers.IO) {
@@ -37,6 +49,14 @@ class AsignacionRepositorioImpl @Inject constructor(
         idempotencyKey: String,
         cederPerfil: Boolean
     ): ResultadoAsignar = withContext(Dispatchers.IO) {
+        // §12.1, literal: "se bloquea el registro de nuevas asignaciones"
+        // — no "se intenta y se falla". Sin esto, cada intento offline
+        // esperaría el timeout de red entero para enterarse de lo mismo
+        // que ya se sabe. Y es la mitad que hace real "no se encola
+        // nada" (05 §4.3): ni siquiera se construye la petición.
+        if (conectividad.estado.value == EstadoConectividad.SinConexion) {
+            return@withContext ResultadoAsignar.SinConexion
+        }
         try {
             val respuesta = api.asignar(puestoId, AsignarPeticionRequest(personalId, idempotencyKey, cederPerfil))
             when {

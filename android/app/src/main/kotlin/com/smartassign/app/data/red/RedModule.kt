@@ -41,10 +41,12 @@ object RedModule {
     @Singleton
     fun clienteHttp(
         urlServidor: InterceptorUrlServidor,
-        autorizacion: InterceptorAutorizacion
+        autorizacion: InterceptorAutorizacion,
+        conectividad: InterceptorConectividad
     ): OkHttpClient = OkHttpClient.Builder()
         .addInterceptor(urlServidor)
         .addInterceptor(autorizacion)
+        .addInterceptor(conectividad)
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
         .build()

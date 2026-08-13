@@ -1,9 +1,11 @@
 package com.smartassign.app.data.red
 
+import com.smartassign.app.data.conectividad.ConectividadRepositorio
 import com.smartassign.app.data.sesion.SesionLocal
 import okhttp3.Interceptor
 import okhttp3.Response
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import java.io.IOException
 import javax.inject.Inject
 
 /**
@@ -46,5 +48,29 @@ class InterceptorAutorizacion @Inject constructor(private val sesionLocal: Sesio
 
         val token = sesionLocal.tokens()?.accessToken ?: return chain.proceed(peticion)
         return chain.proceed(peticion.newBuilder().header("Authorization", "Bearer $token").build())
+    }
+}
+
+/**
+ * UT-E13.3 (00 §12.1, 05 §4.3): alimenta [ConectividadRepositorio] con
+ * la única señal real de "¿se llegó al servidor de planta?" — cualquier
+ * respuesta HTTP, sea 2xx o un rechazo, prueba que se le alcanzó; solo
+ * una `IOException` (sin respuesta en absoluto) es "sin conexión". Un
+ * choke point único, como `InterceptorUrlServidor`/`InterceptorAutorizacion`:
+ * toda petición del cliente autenticado pasa por aquí, así que ningún
+ * repositorio nuevo puede olvidarse de reportar su resultado.
+ */
+class InterceptorConectividad @Inject constructor(
+    private val conectividad: ConectividadRepositorio
+) : Interceptor {
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val respuesta = try {
+            chain.proceed(chain.request())
+        } catch (e: IOException) {
+            conectividad.reportarInalcanzable()
+            throw e
+        }
+        conectividad.reportarAlcanzado()
+        return respuesta
     }
 }

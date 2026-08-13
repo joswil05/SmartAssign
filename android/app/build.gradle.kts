@@ -101,6 +101,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.okhttp.core)
+    testImplementation(libs.okhttp.mockwebserver)
     testImplementation(libs.retrofit.core)
     testImplementation(libs.retrofit.kotlinx.serialization)
     testImplementation(libs.kotlinx.serialization.json)
