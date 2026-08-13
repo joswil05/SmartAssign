@@ -1,7 +1,7 @@
 # SmartAssign — Estado de ejecución
 
 **Se lee al empezar cada sesión. Se actualiza al terminar cada UT.**
-Última actualización: 2026-08-12 · UTs completadas: **88 / 95**
+Última actualización: 2026-08-12 · UTs completadas: **89 / 95**
 
 ## Decisiones de esta sesión que no estaban en los documentos
 
@@ -369,9 +369,14 @@
 
 > **→ PC-5** · Se corta la red y nada queda encolado.
 
-## E14 · Cierre, histórico y endurecimiento *(0/7)* → F12
+## E14 · Cierre, histórico y endurecimiento *(1/7)* → F12
 
-- [ ] **E14.1** Cierre de turno con lista exacta de bloqueos — LEE: `00 §C13`, `02 §4.10`
+- [x] **E14.1** Cierre de turno con lista exacta de bloqueos — LEE: `00 §C13`, `02 §4.10` — arranca E14
+  - VERIFICADO: sin cambios de esquema — `JornadaLinea.CerradoEn`/`Estado`, `UltimaTareaJornada` y el valor `'cierre_turno'` de `SolicitudRelevo.Resultado` ya existían completos desde E4/E5/E9, con comentarios propios citando esta UT por nombre. `sp_CerrarTurno` nuevo, alcance de **una sola línea** (`@jornada_linea_id`) — C13 está escrito enteramente en primera persona de línea ("su línea", "personas suyas"); "el cierre de planta es acción suya [del Coordinador]" no es un mecanismo distinto, es que solo el Coordinador tiene alcance sin restricción (E2) para llamarlo en varias líneas seguidas — no se inventa un "cerrar toda la planta" que ningún documento describe (R2). **Los tres bloqueos en una lista estructurada, nunca un rechazo genérico** (§1.3, §12.4, literal de C13): lote abierto, tránsito entrante, tránsito saliente sin recibir — vía `FOR JSON PATH` sobre un `UNION ALL` (disponible desde SQL Server 2016, sin arriesgarse a `JSON_ARRAYAGG` con disponibilidad no confirmada en esta instancia). El SP devuelve HECHOS estructurados (ids, nombres, códigos de línea); la prosa exacta del diagrama de 02 §4.10 ("Lote 3 sigue abierto", "llama al supervisor de L2") es composición de presentación — ninguna fuente pide lo contrario aquí (a diferencia de `fn_TextoAvisoFatiga`). Al ejecutar: toda `Asignacion` abierta de la jornada —fija o rotativa, sin distinción— cierra con `motivo_fin='cierre_turno'` y su ocupante pasa a `fuera_de_turno` (eso ES "liberar los puestos fijos", no un paso aparte); `UltimaTareaJornada` (00 §B6) se **actualiza** con upsert manual —confirmado que su PK real es solo `personal_id`— para cada persona cuyo puesto tenga `tipo_actividad_id`, sin filtrar por actividad al escribir porque `fn_ViolaNoRepeticion24h` (E4) ya filtra la relevancia al leer, contra `Puesto.horas_recuperacion`; `SolicitudRelevo` abiertas de la línea cierran con `resultado='cierre_turno'`; `RelevoDescartado` de los puestos de la línea, del mismo `dia_operacion`, caducan (00 §B10, literal). Deliberadamente fuera de esta UT (R2): el cierre FORZADO con justificación (A6) es literalmente el título de **E14.2**, que extiende este mismo SP con `CREATE OR ALTER` — mismo patrón que E10.5 extendió `sp_ExtraccionInversa`/`sp_CubrirVacanteCritica`.
+
+    **Bug real encontrado, aislado y corregido — no una suposición.** Dos de las pruebas fallaban de forma intermitente con `CK_Asig_fin` ("fin >= inicio"). Se aisló la causa: el SP declaraba `@ahora DATETIME2(0)` —**sin fracción de segundo**— mientras `Asignacion.inicio` guarda precisión completa (`SYSUTCDATETIME()` sin escala, en su propio default de columna). Cuando una asignación se crea en la mitad "alta" de un segundo y el cierre corre milisegundos después, `@ahora` puede REDONDEAR HACIA ABAJO por debajo de `inicio` — la violación es real, no un artefacto de la prueba. Corregido declarando `@ahora DATETIME2` (precisión completa, igual que la columna con la que se compara). Verificado con **5 corridas consecutivas** de la suite completa de esta UT, 0 fallos en las 5. **Mismo patrón (`DECLARE @ahora DATETIME2(0) = SYSUTCDATETIME()`) existe ya en `sp_ArrancarTurno`/`sp_CambiarSKU` (E5.7/E11.5, ambas UTs cerradas y verificadas)** — no se tocaron esas migraciones en esta UT (no es su alcance, R5 no autoriza reabrir UTs cerradas sin razón concreta encontrada en ellas), pero queda anotado aquí como hallazgo real para que quien revise sepa que el mismo patrón existe en dos sitios más y podría manifestarse bajo la misma condición si alguna vez comparan `@ahora` contra una columna de precisión completa.
+
+    14 pruebas nuevas — cubren los tres bloqueos (incluido que un tránsito ya recibido NO bloquea), la ejecución completa (personal a fuera de turno, puesto liberado, `UltimaTareaJornada` con upsert real verificado en un segundo cierre de la misma persona, un puesto sin actividad no escribe nada, relevos cancelados, descartados caducados), y los tres códigos de rechazo de estado (inexistente / no arrancada / ya cerrada). 545/545 en verde en todo el backend (531 + 14 nuevas — E13, íntegramente Android, no tocó el backend)
 - [ ] **E14.2** `UltimaTareaJornada` + cierre forzado con justificación — LEE: `00 §B6`, `00 §A6`
 - [ ] **E14.3** Histórico y auditoría consultable — LEE: `§2.1.11`, `§12.7`
 - [ ] **E14.4** Rendimiento contra presupuestos — LEE: `05 §3.4`
