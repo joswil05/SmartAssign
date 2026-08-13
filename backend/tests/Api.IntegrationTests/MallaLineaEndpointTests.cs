@@ -445,6 +445,15 @@ public class MallaLineaEndpointTests(SmartAssignApiFactory factory) : IClassFixt
         var persona = await CrearPersonaConDobleTurnoAsync("operario", dobleTurno: true, lineaFisicaActual: 8);
         await AsignarDirectoDesdeHaceAsync(puestoId, persona, jornadaId, coordId, minutosAtras: 90);
 
+        // UT-E14.5 (03 §7.1/§5.3, literal, intocable): la fatiga sugerida
+        // reemplaza el texto de situación con "Relevo sugerido — N
+        // minutos en el puesto" — mismo jornada, un segundo puesto, para
+        // no reclamar una línea nueva (todas las 10 ya están usadas en
+        // este archivo, ver comentario de esta sección).
+        var puestoCriticoId = await CrearPuestoAsync(8, "rotativo", codigo: "L8-R02", umbralCriticoHoras: 1); // umbral crítico 60 min
+        var personaCritico = await CrearPersonaAsync("operario", lineaFisicaActual: 8);
+        await AsignarDirectoDesdeHaceAsync(puestoCriticoId, personaCritico, jornadaId, coordId, minutosAtras: 90);
+
         using var cliente = factory.CreateClient();
         ConAutorizacion(cliente, await LoginAsync(cliente, username, password, "device-malla-10"));
         var puestos = await (await cliente.GetAsync("/api/lineas/8/puestos")).Content.ReadFromJsonAsync<JsonElement>();
@@ -454,6 +463,11 @@ public class MallaLineaEndpointTests(SmartAssignApiFactory factory) : IClassFixt
         puesto.GetProperty("excesoFatiga").GetDecimal().Should().BeGreaterThan(100m, "90 min sobre un umbral de 60 supera el 100%");
         // 00 §B7: distintivo permanente en la persona, visible también en la malla.
         puesto.GetProperty("ocupante").GetProperty("dobleTurno").GetBoolean().Should().BeTrue();
+        puesto.GetProperty("microCopia").GetString().Should().MatchRegex(@"^Relevo sugerido — \d+ minutos en el puesto$");
+
+        var puestoCritico = puestos.EnumerateArray().Single(p => p.GetProperty("id").GetInt32() == puestoCriticoId);
+        puestoCritico.GetProperty("nivelFatiga").GetString().Should().Be("critico");
+        puestoCritico.GetProperty("microCopia").GetString().Should().MatchRegex(@"^Límite ergonómico superado — \d+ minutos en el puesto$");
     }
 
     [Fact]

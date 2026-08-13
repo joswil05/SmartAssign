@@ -116,7 +116,10 @@ fun TarjetaDePuesto(puesto: PuestoMalla, modifier: Modifier = Modifier) {
             }
 
             puesto.nivelFatiga?.let { nivel ->
-                BarraDeFatiga(nivel, puesto.excesoFatiga, modifier = Modifier.testTag("tarjeta-puesto-${puesto.id}-barra-fatiga"))
+                BarraDeFatiga(
+                    nivel, puesto.excesoFatiga, puesto.id,
+                    modifier = Modifier.testTag("tarjeta-puesto-${puesto.id}-barra-fatiga")
+                )
             }
 
             Text(
@@ -137,7 +140,7 @@ fun TarjetaDePuesto(puesto: PuestoMalla, modifier: Modifier = Modifier) {
  * acota a la pista, la cifra real vive en `excesoFatiga`, no en la barra.
  */
 @Composable
-private fun BarraDeFatiga(nivel: String, exceso: Double?, modifier: Modifier = Modifier) {
+private fun BarraDeFatiga(nivel: String, exceso: Double?, puestoId: Int, modifier: Modifier = Modifier) {
     val color = colorDeNivelFatiga(nivel)
     val grosor = when (nivel) {
         "critico" -> 8.dp
@@ -165,8 +168,14 @@ private fun BarraDeFatiga(nivel: String, exceso: Double?, modifier: Modifier = M
         horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
     ) {
         when (nivel) {
-            "sugerido" -> Icon(Icons.Filled.Schedule, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
-            "critico" -> Icon(Icons.Filled.Warning, contentDescription = null, tint = color.copy(alpha = alfaPulso), modifier = Modifier.size(14.dp))
+            "sugerido" -> Icon(
+                Icons.Filled.Schedule, contentDescription = null, tint = color,
+                modifier = Modifier.size(14.dp).testTag("tarjeta-puesto-$puestoId-barra-fatiga-icono")
+            )
+            "critico" -> Icon(
+                Icons.Filled.Warning, contentDescription = null, tint = color.copy(alpha = alfaPulso),
+                modifier = Modifier.size(14.dp).testTag("tarjeta-puesto-$puestoId-barra-fatiga-icono")
+            )
         }
         Box(
             modifier = Modifier

@@ -72,6 +72,7 @@ public static class LineaEndpoints
                         Situacion = SmartAssignDbContext.SituacionPuesto(p.Id),
                         NivelFatiga = SmartAssignDbContext.NivelFatiga(p.Id),
                         ExcesoFatiga = SmartAssignDbContext.ExcesoRelativoFatiga(p.Id),
+                        MinutosEnPuesto = SmartAssignDbContext.MinutosEnPuesto(p.Id),
                         Asignacion = db.Asignaciones
                             .Where(a => a.PuestoId == p.Id && a.Fin == null)
                             .Select(a => new { a.PersonalId, a.TitularOriginalId, a.Origen })
@@ -111,7 +112,8 @@ public static class LineaEndpoints
                         indicadorMedico = restriccionesVigentes.GetValueOrDefault(persona.Id, 0);
                     }
 
-                    var microCopia = MicroCopiaDePuesto(situacionMostrada, f.Tipo, f.Asignacion?.TitularOriginalId is not null);
+                    var microCopia = MicroCopiaDePuesto(
+                        situacionMostrada, f.Tipo, f.Asignacion?.TitularOriginalId is not null, f.NivelFatiga, f.MinutosEnPuesto);
 
                     return new PuestoMallaRespuesta(
                         f.Id, f.Codigo, f.NombrePuesto, f.Tipo, situacionMostrada, ocupante, indicadorMedico, microCopia,
@@ -133,14 +135,40 @@ public static class LineaEndpoints
     /// UT (E6.4): ningún puesto fijo "libre" antes de que arranque el
     /// turno estaba contemplado en el catálogo original — no inventa un
     /// estado, describe con honestidad (§1.3) uno que ya existía.
+    ///
+    /// UT-E14.5 (03 §5.3, "nunca solo color" — la barra de fatiga de
+    /// `TarjetaDePuesto`/Android tenía color y forma, pero le faltaba el
+    /// tercer canal, texto): §7.1 ya traía las dos filas de fatiga
+    /// ("Relevo sugerido — N minutos en el puesto" /
+    /// "Límite ergonómico superado — N minutos en el puesto"),
+    /// **intocable, "no se reinventa"** — nunca se habían conectado a la
+    /// selección real. Fatiga sugerida/crítica reemplaza el texto de
+    /// situación cuando aplica — un puesto con `nivelFatiga` no nulo solo
+    /// puede estar `ocupado` (E7.4: nulo en fijos y en rotativos sin
+    /// nadie asignado), así que no hay conflicto real de prioridad que
+    /// decidir entre los dos catálogos. El minuto que se muestra es el
+    /// reloj CRUDO (`fn_MinutosEnPuesto`), nunca el ajustado por doble
+    /// turno (`fn_MinutosEnPuestoEfectivos`, 00 §B7) — mismo criterio ya
+    /// documentado en la migración `FactorDobleTurno` (E7.4) para el
+    /// aviso de HU-D2: un número ajustado "no correspondería a nada
+    /// físico" para quien lo lee.
     /// </summary>
-    private static string MicroCopiaDePuesto(string situacion, string tipo, bool cubiertoPorSuplente) => situacion switch
+    private static string MicroCopiaDePuesto(
+        string situacion, string tipo, bool cubiertoPorSuplente, string? nivelFatiga, int? minutosEnPuesto)
     {
-        "fuera_de_operacion" => "Puesto no requerido por el SKU de hoy",
-        "ocupado" when cubiertoPorSuplente => "Cubierto por suplente — titular ausente",
-        "ocupado" => "Asignado automáticamente por asistencia",
-        "vacante_critica" => "Sin titular ni suplente disponible",
-        "descubierto" => "Sin ocupante — pendiente de cubrir",
-        _ => "Esperando el arranque del turno", // "libre" en un fijo — añadida
-    };
+        if (nivelFatiga == "critico" && minutosEnPuesto is { } minCritico)
+            return $"Límite ergonómico superado — {minCritico} minutos en el puesto";
+        if (nivelFatiga == "sugerido" && minutosEnPuesto is { } minSugerido)
+            return $"Relevo sugerido — {minSugerido} minutos en el puesto";
+
+        return situacion switch
+        {
+            "fuera_de_operacion" => "Puesto no requerido por el SKU de hoy",
+            "ocupado" when cubiertoPorSuplente => "Cubierto por suplente — titular ausente",
+            "ocupado" => "Asignado automáticamente por asistencia",
+            "vacante_critica" => "Sin titular ni suplente disponible",
+            "descubierto" => "Sin ocupante — pendiente de cubrir",
+            _ => "Esperando el arranque del turno", // "libre" en un fijo — añadida
+        };
+    }
 }

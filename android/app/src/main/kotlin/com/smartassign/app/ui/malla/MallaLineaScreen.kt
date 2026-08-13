@@ -9,7 +9,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,6 +42,7 @@ import com.smartassign.app.ui.theme.BgSurface
 import com.smartassign.app.ui.theme.Radius
 import com.smartassign.app.ui.theme.Spacing
 import com.smartassign.app.ui.theme.TextSecondary
+import com.smartassign.app.ui.theme.TouchTarget
 import com.smartassign.app.ui.theme.TypeLabel
 
 /**
@@ -78,6 +82,10 @@ fun MallaLineaScreen(viewModel: MallaLineaViewModel = hiltViewModel()) {
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(Spacing.lg)
+                // 03 §5.1: acción primaria de la pantalla central de la app
+                // (§3.1) — 64 dp, no el tamaño de FAB por defecto de
+                // Material3 (56 dp). E14.5, hallazgo real vía prueba.
+                .size(TouchTarget.accionPrimaria)
                 .testTag("malla-boton-escanear-gafete")
         ) {
             Icon(Icons.Filled.QrCodeScanner, contentDescription = "Escanear gafete")
@@ -146,15 +154,19 @@ private fun EncabezadoDeGrupo(texto: String) {
 @Composable
 private fun FilaColapsoFueraDeOperacion(cantidad: Int, expandido: Boolean, onClick: () -> Unit) {
     // Micro-copia literal de 03 §4.3: "N puestos no requeridos por el SKU de hoy".
+    // 03 §5.1: piso absoluto de 48 dp — Spacing.sm (8 dp) de relleno
+    // vertical por sí solo no lo alcanzaba. E14.5, hallazgo real vía prueba.
     Text(
         text = "$cantidad puesto${if (cantidad == 1) "" else "s"} no requerido${if (cantidad == 1) "" else "s"} por el SKU de hoy",
         style = TypeLabel,
         color = TextSecondary,
         modifier = Modifier
             .fillMaxWidth()
-            .testTag("malla-fuera-de-operacion-colapso")
+            .heightIn(min = TouchTarget.minimo)
             .clickable(onClick = onClick)
+            .wrapContentHeight(Alignment.CenterVertically)
             .padding(vertical = Spacing.sm)
+            .testTag("malla-fuera-de-operacion-colapso")
     )
 }
 

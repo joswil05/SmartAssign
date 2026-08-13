@@ -73,6 +73,16 @@ public class SmartAssignDbContext : DbContext
     public static decimal? ExcesoRelativoFatiga(int puestoId) =>
         throw new NotSupportedException("Solo se traduce dentro de una consulta LINQ.");
 
+    /// <summary>
+    /// UT-E14.5: mapea <c>fn_MinutosEnPuesto</c> (E7.2, ya usada dentro de
+    /// <c>fn_NivelFatiga</c>/<c>fn_ExcesoRelativoFatiga</c>) para componer
+    /// la micro-copia literal de fatiga de 03 §7.1 ("... — N minutos en
+    /// el puesto") con el mismo dato que decide el nivel — nunca un
+    /// segundo cálculo de minutos que pudiera desincronizarse del real.
+    /// </summary>
+    public static int? MinutosEnPuesto(int puestoId) =>
+        throw new NotSupportedException("Solo se traduce dentro de una consulta LINQ.");
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDbFunction(typeof(SmartAssignDbContext).GetMethod(nameof(SituacionPuesto))!)
@@ -85,6 +95,10 @@ public class SmartAssignDbContext : DbContext
 
         modelBuilder.HasDbFunction(typeof(SmartAssignDbContext).GetMethod(nameof(ExcesoRelativoFatiga))!)
             .HasName("fn_ExcesoRelativoFatiga")
+            .HasSchema("dbo");
+
+        modelBuilder.HasDbFunction(typeof(SmartAssignDbContext).GetMethod(nameof(MinutosEnPuesto))!)
+            .HasName("fn_MinutosEnPuesto")
             .HasSchema("dbo");
 
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(SmartAssignDbContext).Assembly);
