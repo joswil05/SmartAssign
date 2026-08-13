@@ -1,6 +1,6 @@
 // SmartAssign — módulo app. Stack completo en docs/05_TRD.md §1.5.
 // Red + Hilt + almacenamiento cifrado + CameraX/ML Kit entran en E6.3.
-// Room/SQLCipher (caché sin conexión) y SignalR quedan para E12/E13.
+// Room/SQLCipher (caché sin conexión) entran en E13.1; SignalR en E13.5.
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -84,6 +84,13 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
 
     implementation(libs.security.crypto)
+
+    // E13.1 — caché sin conexión cifrada (D3, 05 §3.2).
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    ksp(libs.room.compiler)
+    implementation(libs.sqlcipher.android)
+    implementation(libs.androidx.sqlite)
 
     implementation(libs.camerax.core)
     implementation(libs.camerax.camera2)

@@ -13,6 +13,8 @@ retrofit = "2.11.0"
 okhttp = "4.12.0"
 kotlinxSerialization = "1.7.3"
 room = "2.6.1"
+sqlcipher = "4.6.1"
+sqlite = "2.4.0"
 signalr = "8.0.7"
 coroutines = "1.9.0"
 cameraX = "1.4.0"
@@ -52,6 +54,13 @@ kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-cor
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
+
+# D3: "Base local cifrada, clave en Android Keystore." SQLCipher cifra el
+# fichero entero de la base (no columna por columna) — es lo que permite
+# que un teléfono extraviado no entregue el padrón médico cacheado.
+sqlcipher-android = { group = "net.zetetic", name = "sqlcipher-android", version.ref = "sqlcipher" }
+androidx-sqlite = { group = "androidx.sqlite", name = "sqlite", version.ref = "sqlite" }
 
 signalr-client = { group = "com.microsoft.signalr", name = "signalr", version.ref = "signalr" }
 
