@@ -27,11 +27,29 @@ val TypeBody = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.Normal)
 val TypeBodyStrong = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
 val TypeCaption = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Normal)
 val TypeLabel = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+
+/**
+ * Rótulo de botón. 24 sp por dos razones que apuntan al mismo sitio:
+ *
+ * 1. **Contraste.** `03 §5.2` exige 7:1 a texto normal y 4.5:1 a texto
+ *    ≥ 24 sp. Sobre `AccionPrimaria` el 7:1 es inalcanzable para
+ *    cualquier color de texto sin que el botón desaparezca contra el
+ *    fondo (la cuenta completa está en `Color.kt`). A 24 sp el umbral
+ *    aplicable es 4.5:1, que el par actual supera con 5.15:1.
+ * 2. **Proporción.** `03 §5.1` deja la acción primaria en 64 dp —el
+ *    objetivo más grande de la app— *"porque es la que más se usa y la
+ *    que menos puede fallar"*, y `§2.2` justifica el cuerpo en 18 sp
+ *    porque *"se lee de pie, en movimiento, a distancia de brazo"*. Un
+ *    rótulo de 16 sp (el penúltimo tamaño de la escala) dentro de un
+ *    botón de 64 dp contradecía ese razonamiento: el control más
+ *    importante llevaba de las letras más pequeñas.
+ */
+val TypeAction = TextStyle(fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
 val TypeMono = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.Medium, fontFamily = FontFamily.Monospace)
 
 /** Todos los tamaños declarados — usado para verificar el piso de 15 sp (§12.3). */
 val TodosLosEstilosTipograficos = listOf(
-    TypeDisplay, TypeTitle, TypeSubtitle, TypeBody, TypeBodyStrong, TypeCaption, TypeLabel, TypeMono
+    TypeDisplay, TypeTitle, TypeSubtitle, TypeBody, TypeBodyStrong, TypeCaption, TypeLabel, TypeAction, TypeMono
 )
 
 val SmartAssignTypography = Typography(
@@ -40,6 +58,11 @@ val SmartAssignTypography = Typography(
     titleLarge = TypeSubtitle,
     bodyLarge = TypeBody,
     bodyMedium = TypeBodyStrong,
-    labelLarge = TypeCaption,
+    // Material3 pinta el rótulo de todo `Button`/`TextButton` con
+    // `labelLarge`. Cambiarlo aquí alcanza a las ~12 pantallas de una
+    // vez, sin tener que acordarse de pasar el estilo en cada llamada —
+    // que es exactamente el tipo de olvido que dejó la app en
+    // negro-sobre-negro.
+    labelLarge = TypeAction,
     labelMedium = TypeLabel
 )
