@@ -48,3 +48,13 @@ data class MeResponse(
 
 @Serializable
 data class ServidorInfoResponse(val servidor: String)
+
+/** Forma exacta de `VersionAppEndpoints.VersionActualRespuesta` (E14.6, 00 §F3, 04 §10.1). */
+@Serializable
+data class VersionActualResponse(
+    val versionNombre: String,
+    val versionCodigo: Int,
+    val versionMinimaApi: Int,
+    val notas: String? = null,
+    val publicadaEn: String
+)

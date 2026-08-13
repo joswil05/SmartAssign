@@ -8,6 +8,8 @@ import androidx.compose.ui.test.performTextInput
 import com.smartassign.app.data.sesion.FakeSesionRepositorio
 import com.smartassign.app.data.sesion.QuienSoy
 import com.smartassign.app.data.sesion.ResultadoAuth
+import com.smartassign.app.data.version.FakeVerificadorVersionRepositorio
+import com.smartassign.app.data.version.ResultadoVersion
 import com.smartassign.app.ui.navegacion.Rutas
 import org.junit.Rule
 import org.junit.Test
@@ -27,7 +29,7 @@ class LoginScreenTest {
         var rutaRecibida: String? = null
 
         compose.setContent {
-            LoginScreen(onAutenticado = { rutaRecibida = it }, viewModel = LoginViewModel(repo))
+            LoginScreen(onAutenticado = { rutaRecibida = it }, viewModel = LoginViewModel(repo, FakeVerificadorVersionRepositorio()))
         }
 
         compose.onNodeWithTag("login-usuario").performTextInput("coord_android")
@@ -45,7 +47,7 @@ class LoginScreenTest {
         }
 
         compose.setContent {
-            LoginScreen(onAutenticado = {}, viewModel = LoginViewModel(repo))
+            LoginScreen(onAutenticado = {}, viewModel = LoginViewModel(repo, FakeVerificadorVersionRepositorio()))
         }
 
         compose.onNodeWithTag("login-usuario").performTextInput("alguien")
@@ -54,5 +56,65 @@ class LoginScreenTest {
         compose.waitForIdle()
 
         compose.onNodeWithText("Usuario o contraseña incorrectos.").assertExists()
+    }
+
+    // ═══ UT-E14.6 (00 §F3): verificación de versión al iniciar sesión ═══
+
+    @Test
+    fun bloqueada_por_version_reemplaza_el_formulario_por_completo() {
+        val repo = FakeSesionRepositorio()
+        val version = FakeVerificadorVersionRepositorio().apply {
+            resultado = ResultadoVersion.Bloqueada("2.0.0", "https://servidor/api/version-app/apk")
+        }
+
+        compose.setContent {
+            LoginScreen(onAutenticado = {}, viewModel = LoginViewModel(repo, version))
+        }
+
+        compose.onNodeWithTag("pantalla-login-bloqueada").assertExists()
+        compose.onNodeWithTag("pantalla-login").assertDoesNotExist()
+        compose.onNodeWithTag("login-usuario").assertDoesNotExist()
+        compose.onNodeWithText("2.0.0", substring = true).assertExists()
+    }
+
+    @Test
+    fun actualizacion_disponible_sin_bloquear_muestra_el_banner_y_el_formulario_sigue_usable() {
+        val repo = FakeSesionRepositorio().apply {
+            resultadoLogin = ResultadoAuth.Ok(1, "coordinador", "Coord")
+            quienSoyResultado = QuienSoy(1, "coordinador", "Coord", null)
+        }
+        val version = FakeVerificadorVersionRepositorio().apply {
+            resultado = ResultadoVersion.ActualizacionDisponible("2.0.0", "https://servidor/api/version-app/apk")
+        }
+        var rutaRecibida: String? = null
+
+        compose.setContent {
+            LoginScreen(onAutenticado = { rutaRecibida = it }, viewModel = LoginViewModel(repo, version))
+        }
+
+        compose.onNodeWithTag("login-banner-actualizacion-disponible").assertExists()
+        compose.onNodeWithTag("login-usuario").assertExists()
+
+        // "se ofrece la actualización pero no se impone" (00 §F3, literal) — el login sigue funcionando.
+        compose.onNodeWithTag("login-usuario").performTextInput("coord_android")
+        compose.onNodeWithTag("login-password").performTextInput("Clave#Coord123")
+        compose.onNodeWithTag("login-entrar").performClick()
+
+        compose.waitUntil(timeoutMillis = 5_000) { rutaRecibida != null }
+        assert(rutaRecibida == Rutas.PANEL_PLANTA)
+    }
+
+    @Test
+    fun compatible_no_muestra_ni_bloqueo_ni_banner() {
+        val repo = FakeSesionRepositorio()
+        val version = FakeVerificadorVersionRepositorio().apply { resultado = ResultadoVersion.Compatible }
+
+        compose.setContent {
+            LoginScreen(onAutenticado = {}, viewModel = LoginViewModel(repo, version))
+        }
+
+        compose.onNodeWithTag("pantalla-login-bloqueada").assertDoesNotExist()
+        compose.onNodeWithTag("login-banner-actualizacion-disponible").assertDoesNotExist()
+        compose.onNodeWithTag("login-usuario").assertExists()
     }
 }

@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.smartassign.app.data.sesion.ResultadoAuth
 import com.smartassign.app.data.sesion.SesionRepositorio
+import com.smartassign.app.data.version.ResultadoVersion
+import com.smartassign.app.data.version.VerificadorVersionRepositorio
 import com.smartassign.app.ui.navegacion.Rutas
 import com.smartassign.app.ui.navegacion.destinoTrasAutenticar
 import com.smartassign.app.ui.sesion.MensajesSesion
@@ -19,17 +21,29 @@ data class LoginUiState(
     val password: String = "",
     val enviando: Boolean = false,
     val error: String? = null,
-    val siguientePaso: String? = null
+    val siguientePaso: String? = null,
+    // 00 §F3: se comprueba al iniciar sesión. Compatible por defecto
+    // mientras la comprobación real todavía está en vuelo — nunca un
+    // parpadeo de pantalla bloqueada en cada apertura de la pantalla.
+    val resultadoVersion: ResultadoVersion = ResultadoVersion.Compatible
 )
 
 /** 02 §1.1: `[Login usuario]` — usuario+contraseña, un solo mensaje de error sin detalle de qué falló. */
 @HiltViewModel
 class LoginViewModel @Inject constructor(
-    private val repositorio: SesionRepositorio
+    private val repositorio: SesionRepositorio,
+    private val verificadorVersion: VerificadorVersionRepositorio
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            val resultado = verificadorVersion.verificar()
+            _uiState.value = _uiState.value.copy(resultadoVersion = resultado)
+        }
+    }
 
     fun onUsernameChange(valor: String) {
         _uiState.value = _uiState.value.copy(username = valor, error = null)
@@ -42,6 +56,10 @@ class LoginViewModel @Inject constructor(
     fun iniciarSesion(alAutenticar: (String) -> Unit) {
         val estadoActual = _uiState.value
         if (estadoActual.enviando || estadoActual.username.isBlank() || estadoActual.password.isBlank()) return
+        // 00 §F3: por debajo del mínimo, no se intenta ni la llamada —
+        // la pantalla ya reemplaza el formulario por el bloqueo, esto es
+        // la segunda capa, no la única.
+        if (estadoActual.resultadoVersion is ResultadoVersion.Bloqueada) return
 
         _uiState.value = estadoActual.copy(enviando = true, error = null)
         viewModelScope.launch {

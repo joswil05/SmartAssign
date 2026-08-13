@@ -13,11 +13,13 @@ using SmartAssign.Application.Autenticacion;
 using SmartAssign.Application.Historico;
 using SmartAssign.Application.Seguridad;
 using SmartAssign.Application.Trazabilidad;
+using SmartAssign.Application.VersionesApp;
 using SmartAssign.Infrastructure.Asignaciones;
 using SmartAssign.Infrastructure.Autenticacion;
 using SmartAssign.Infrastructure.Historico;
 using SmartAssign.Infrastructure.Persistence;
 using SmartAssign.Infrastructure.Seguridad;
+using SmartAssign.Infrastructure.VersionesApp;
 using SmartAssign.Infrastructure.Trazabilidad;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -56,6 +58,7 @@ builder.Services.AddScoped<IServicioAutenticacion, ServicioAutenticacion>();
 builder.Services.AddScoped<IRegistradorAuditoria, RegistradorAuditoria>();
 builder.Services.AddScoped<IServicioAsignacion, ServicioAsignacion>();
 builder.Services.AddScoped<IServicioHistorico, ServicioHistorico>();
+builder.Services.AddScoped<IServicioVersionApp, ServicioVersionApp>();
 
 builder.Services.AddScoped<IContextoSesionActual, ContextoSesionActual>();
 builder.Services.AddScoped<IAlcanceLineaResolver, AlcanceLineaResolver>();
@@ -148,6 +151,7 @@ app.MapNotificacionEndpoints();
 app.MapDispositivoPushEndpoints();
 app.MapHistoricoEndpoints();
 app.MapAuditoriaEndpoints();
+app.MapVersionAppEndpoints();
 app.MapHub<PlantaHub>("/hub/planta");
 
 app.Run();

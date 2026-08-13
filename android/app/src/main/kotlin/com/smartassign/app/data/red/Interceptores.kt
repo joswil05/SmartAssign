@@ -39,7 +39,10 @@ class InterceptorUrlServidor @Inject constructor(private val sesionLocal: Sesion
  * cliente no puede preguntarle al servidor "¿esto necesita token?".
  */
 class InterceptorAutorizacion @Inject constructor(private val sesionLocal: SesionLocal) : Interceptor {
-    private val rutasAnonimas = setOf("api/auth/login", "api/auth/refresh", "api/auth/pin", "api/servidor/info")
+    private val rutasAnonimas = setOf(
+        "api/auth/login", "api/auth/refresh", "api/auth/pin", "api/servidor/info",
+        "api/version-app/actual", "api/version-app/apk", // E14.6 — se comprueba antes de que exista sesión
+    )
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val peticion = chain.request()

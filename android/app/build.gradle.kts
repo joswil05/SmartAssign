@@ -49,6 +49,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true // E14.6: BuildConfig.VERSION_CODE, verificación de versión (00 §F3)
     }
 
     packaging {

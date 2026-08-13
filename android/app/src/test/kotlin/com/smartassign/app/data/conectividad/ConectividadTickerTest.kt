@@ -31,6 +31,7 @@ class ConectividadTickerTest {
             vecesServidorInfo++
             return Response.success(ServidorInfoResponse(servidor = "SmartAssign"))
         }
+        override suspend fun versionActual(): Response<com.smartassign.app.data.red.VersionActualResponse> = throw NotImplementedError()
     }
 
     private class ConexionDeConteo(private var conectado: Boolean = false) : ConexionTiempoReal {

@@ -29,4 +29,8 @@ interface AuthApi {
 
     @GET("api/servidor/info")
     suspend fun servidorInfo(): Response<ServidorInfoResponse>
+
+    /** 404 = ninguna versión publicada todavía (§1.3, honestidad del dato) — no un error. */
+    @GET("api/version-app/actual")
+    suspend fun versionActual(): Response<VersionActualResponse>
 }
