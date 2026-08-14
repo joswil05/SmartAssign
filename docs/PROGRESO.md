@@ -454,13 +454,14 @@
 
 | ID | Qué falta | Bloquea |
 |---|---|---|
-| **H7** | Cerrar `A5b` y `A7-orig` | E10 |
 | **H4** | Gafetes impresos con QR | Pruebas de campo desde E6 |
 | **H5** | Datos reales de personal, puestos y SKU | Producción, no construcción |
 | **H6** | Vocabulario real de capacidades físicas | Producción, no construcción |
 | **H2** | Teléfonos físicos | PC-1 en adelante |
 
 > **H5 y H6 ya no dependen de que alguien se acuerde (E14.7).** `ImportadorCli verificar-produccion` sale con código 1 mientras quede una sola fila fabricada o mientras el vocabulario de capacidades físicas siga siendo el placeholder de desarrollo — sirve como puerta de despliegue. `purgar-simulados` limpia lo primero; lo segundo solo lo cierra la sesión con Enfermería.
+
+> **H7 retirado (2026-08-13):** su contenido era "cerrar `A5b` y `A7-orig` antes de E10". Las dos decisiones están cerradas desde hace tiempo (`00_DECISIONES.md` §A5b y el resumen §11: *"A5b/A7-orig ya no aplican — fueron cerradas"*) y E10 se completó con ellas resueltas. La fila seguía en pie por inercia.
 
 > **H8 resuelto (2026-08-09, mismo día que se abrió):** el cliente confirmó que `"Femenina"` es error de tipeo de `"Femenino"`, y que el resto de la tabla (incluida la Línea 6) describe puestos y perfil técnico reales. Ver `00_DECISIONES.md §G6`. Los 98 puestos fijos reales ya importan sin errores.
 
