@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -9,12 +9,14 @@ using SmartAssign.Api.Notificaciones;
 using SmartAssign.Api.Seguridad;
 using SmartAssign.Api.TiempoReal;
 using SmartAssign.Application.Asignaciones;
+using SmartAssign.Application.CicloDeTurno;
 using SmartAssign.Application.Autenticacion;
 using SmartAssign.Application.Historico;
 using SmartAssign.Application.Seguridad;
 using SmartAssign.Application.Trazabilidad;
 using SmartAssign.Application.VersionesApp;
 using SmartAssign.Infrastructure.Asignaciones;
+using SmartAssign.Infrastructure.CicloDeTurno;
 using SmartAssign.Infrastructure.Autenticacion;
 using SmartAssign.Infrastructure.Historico;
 using SmartAssign.Infrastructure.Persistence;
@@ -47,10 +49,36 @@ builder.Services.AddHostedService<NotificacionDispatcher>();
 // tiempo — "supervisor no localizable" (D5).
 builder.Services.AddHostedService<EscaladoDeNotificacionesDispatcher>();
 
+// ─── Barridos del motor (revisión de producción, P-03) ──────────────────
+// sp_DetectarFatiga (E9.1) y sp_CaducarTransitos (E8.6) estaban construidos
+// y probados, pero solo los llamaban las pruebas: en planta la fatiga nunca
+// se habría detectado sola y ningún tránsito habría caducado.
+builder.Services.AddHostedService<BarridosDelMotorService>();
+
 // ─── Identidad y aislamiento (etapa E2) ─────────────────────────────────
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.Seccion));
 var jwtOpciones = builder.Configuration.GetSection(JwtOptions.Seccion).Get<JwtOptions>()
     ?? throw new InvalidOperationException("Falta la sección 'Jwt' en la configuración (D6).");
+
+// Revisión de producción, hallazgo P-05. appsettings.json deja la clave
+// vacía y afirmaba que "un despliegue que no la fije falla al arrancar".
+// No fallaba: el proceso levantaba, escribía "Application started" y
+// devolvía 500 a TODOS los endpoints, incluidos los anónimos — el teléfono
+// ni siquiera podía verificar el servidor al darse de alta. Ahora falla
+// aquí, con el motivo escrito y antes de aceptar una sola petición.
+if (string.IsNullOrWhiteSpace(jwtOpciones.ClaveSecreta))
+    throw new InvalidOperationException(
+        "Jwt:ClaveSecreta está vacía. En producción llega por variable de entorno "
+        + "(Jwt__ClaveSecreta) o Key Vault, nunca de un archivo versionado (D6). "
+        + "Genera una con: openssl rand -base64 32");
+
+// HMAC-SHA256 con una clave más corta que su propio digest no aporta la
+// fuerza que el algoritmo promete, y el handler la rechazaría en la
+// primera firma — es decir, en el primer login del turno.
+if (Encoding.UTF8.GetByteCount(jwtOpciones.ClaveSecreta) < 32)
+    throw new InvalidOperationException(
+        $"Jwt:ClaveSecreta mide {Encoding.UTF8.GetByteCount(jwtOpciones.ClaveSecreta)} bytes; "
+        + "HMAC-SHA256 necesita al menos 32. Genera una con: openssl rand -base64 32");
 
 builder.Services.AddScoped<IServicioCredenciales, ServicioCredenciales>();
 builder.Services.AddScoped<IServicioTokens, ServicioTokensJwt>();
@@ -58,6 +86,7 @@ builder.Services.AddScoped<IServicioAutenticacion, ServicioAutenticacion>();
 builder.Services.AddScoped<IRegistradorAuditoria, RegistradorAuditoria>();
 builder.Services.AddScoped<IServicioAsignacion, ServicioAsignacion>();
 builder.Services.AddScoped<IServicioHistorico, ServicioHistorico>();
+builder.Services.AddScoped<IServicioCicloDeTurno, ServicioCicloDeTurno>();
 builder.Services.AddScoped<IServicioVersionApp, ServicioVersionApp>();
 
 builder.Services.AddScoped<IContextoSesionActual, ContextoSesionActual>();
@@ -152,6 +181,8 @@ app.MapDispositivoPushEndpoints();
 app.MapHistoricoEndpoints();
 app.MapAuditoriaEndpoints();
 app.MapVersionAppEndpoints();
+app.MapCicloDeTurnoEndpoints();
+app.MapMaestrosEndpoints();
 app.MapHub<PlantaHub>("/hub/planta");
 
 app.Run();

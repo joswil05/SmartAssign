@@ -1,7 +1,8 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using SmartAssign.Domain.Entities;
+using SmartAssign.Application.Tiempo;
 using SmartAssign.Infrastructure.Persistence;
 
 namespace Reglas.SeguridadTests;
@@ -903,7 +904,14 @@ public class MotorDeValidacionTests : IAsyncLifetime
         var persona = await CrearPersonaAsync(ctx, "operario");
         var puesto = await CrearPuestoAsync(ctx, "rotativo");
         await VincularCapacidadAsync(ctx, puesto, 1);
-        var hoy = DateOnly.FromDateTime(DateTime.UtcNow);
+        // Este "hoy" tiene que ser el MISMO que usa sp_ValidarAsignacion, o
+        // la prueba no comprueba lo que dice. Antes ambos eran UTC y
+        // coincidían por casualidad; el hallazgo P-01 de la revisión de
+        // producción destapó que ese "hoy" compartido estaba mal: con el
+        // servidor en UTC−6, de 18:00 a medianoche la fecha UTC ya es la de
+        // mañana y un dictamen vigente hoy dejaba de bloquear. El motor pasó
+        // a la fecha de planta (00 §C6) y la prueba lo sigue.
+        var hoy = FechaPlanta.Hoy();
         await CrearRestriccionAsync(ctx, persona, 1, hoy, hoy, usuario);
 
         var (codigo, _) = await ValidarAsignacionAsync(persona, puesto, usuario);

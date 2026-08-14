@@ -30,6 +30,13 @@ public class SmartAssignApiFactory : WebApplicationFactory<Program>, IAsyncLifet
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:SmartAssignDb"] = CadenaConexion,
+                // P-03: BarridosDelMotorService abre solicitudes de relevo
+                // por su cuenta cada 30 s. En pruebas competiría con los
+                // escenarios que construyen su propia fatiga a mano, así
+                // que aquí se apaga el temporizador — los barridos se
+                // prueban llamando a sus métodos directamente
+                // (BarridosDelMotorTests), que es lo que hace el trabajo.
+                ["Barridos:Habilitado"] = "false",
             });
         });
 

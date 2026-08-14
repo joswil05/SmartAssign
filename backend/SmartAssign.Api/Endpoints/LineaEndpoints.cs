@@ -1,5 +1,6 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using SmartAssign.Api.Seguridad;
+using SmartAssign.Application.Tiempo;
 using SmartAssign.Infrastructure.Persistence;
 
 namespace SmartAssign.Api.Endpoints;
@@ -59,7 +60,7 @@ public static class LineaEndpoints
         // final) es del cliente (E6.4): esto es dato, no interacción.
         app.MapGet("/api/lineas/{lineaId}/puestos", async (byte lineaId, SmartAssignDbContext db, CancellationToken ct) =>
             {
-                var hoy = DateOnly.FromDateTime(DateTime.UtcNow); // hora del servidor, 00 §C6
+                var hoy = FechaPlanta.Hoy(); // hora del servidor, 00 §C6 — ver P-01
 
                 var filas = await db.Puestos
                     .Where(p => p.LineaId == lineaId && p.Activo)

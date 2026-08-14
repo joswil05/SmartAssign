@@ -1,4 +1,5 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
+using SmartAssign.Application.Tiempo;
 using SmartAssign.Infrastructure.Persistence;
 
 namespace SmartAssign.Api.Endpoints;
@@ -37,7 +38,11 @@ public static class PersonalEndpoints
                 // Mismo filtro de vigencia que el indicador médico de la
                 // malla (E6.4, LineaEndpoints) — aquí se listan los
                 // nombres, no solo se cuentan.
-                var hoy = DateOnly.FromDateTime(DateTime.UtcNow);
+                // P-01: era DateTime.UtcNow. Con el servidor en UTC−6 eso
+                // devolvía la fecha de mañana desde las 18:00, y una
+                // restricción médica vencida hoy dejaba de listarse seis
+                // horas antes. 00 §C6: la hora es la del servidor.
+                var hoy = FechaPlanta.Hoy();
                 var restricciones = await db.RestriccionesMedicas
                     .Where(r => r.PersonalId == persona.Id && r.FechaInicio <= hoy && (r.FechaFin == null || r.FechaFin >= hoy))
                     .OrderBy(r => r.Id)
