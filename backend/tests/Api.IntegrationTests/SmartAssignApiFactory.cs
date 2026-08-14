@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Hosting;
+﻿using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.SqlClient;
@@ -22,12 +22,14 @@ public class SmartAssignApiFactory : WebApplicationFactory<Program>, IAsyncLifet
     public string CadenaConexion =>
         $"Server=(localdb)\\MSSQLLocalDB;Database={_baseDatos};Trusted_Connection=True;TrustServerCertificate=True;";
 
+    protected virtual void AjustesExtra(IDictionary<string, string?> config) { }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
         builder.ConfigureAppConfiguration((_, config) =>
         {
-            config.AddInMemoryCollection(new Dictionary<string, string?>
+            var ajustes = new Dictionary<string, string?>
             {
                 ["ConnectionStrings:SmartAssignDb"] = CadenaConexion,
                 // P-03: BarridosDelMotorService abre solicitudes de relevo
@@ -37,7 +39,14 @@ public class SmartAssignApiFactory : WebApplicationFactory<Program>, IAsyncLifet
                 // prueban llamando a sus métodos directamente
                 // (BarridosDelMotorTests), que es lo que hace el trabajo.
                 ["Barridos:Habilitado"] = "false",
-            });
+                // P-11: en TestServer no hay IP remota, así que todas las
+                // pruebas caerían en la misma partición del limitador y se
+                // estrangularían entre sí. El límite real se prueba en
+                // LimiteDeIntentosTests, con su propia fábrica.
+                ["Credenciales:IntentosPorMinuto"] = "100000",
+            };
+            AjustesExtra(ajustes);
+            config.AddInMemoryCollection(ajustes);
         });
 
         // E12.4: no hay credenciales reales de Firebase en CI — el único

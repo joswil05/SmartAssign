@@ -1,4 +1,6 @@
-﻿using System.Text;
+﻿using System.Globalization;
+using System.Text;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -135,6 +137,50 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+// ─── Límite de tasa en credenciales (revisión de producción, P-11) ──────
+// El bloqueo por intentos fallidos (E2) es POR USUARIO: frena a quien
+// adivina la contraseña de Ana, no a quien prueba una contraseña común
+// contra las 160 fichas, ni a un cliente en bucle que tumbe el login al
+// arranque del turno. Esto limita por origen, que es la otra mitad.
+//
+// Solo las rutas anónimas de credenciales. El resto de la Api ya exige
+// sesión y va detrás del aislamiento de E2 — limitar ahí penalizaría a un
+// supervisor legítimo llenando su línea a toda velocidad, que es
+// exactamente lo que el sistema quiere que ocurra.
+builder.Services.AddRateLimiter(opciones =>
+{
+    opciones.AddPolicy("credenciales", contexto =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: contexto.Connection.RemoteIpAddress?.ToString() ?? "sin-origen",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                // Configurable porque en pruebas TODAS las peticiones
+                // comparten origen (TestServer no expone IP remota) y un
+                // límite pensado para la planta las estrangularía entre sí.
+                // El valor de planta es el de por defecto.
+                PermitLimit = builder.Configuration.GetValue("Credenciales:IntentosPorMinuto", 10),
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+            }));
+
+    // 429 con Retry-After: un cliente que no sabe cuánto esperar reintenta
+    // en bucle y empeora justo lo que el límite intenta contener.
+    opciones.OnRejected = async (contexto, ct) =>
+    {
+        contexto.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+
+        if (contexto.Lease.TryGetMetadata(MetadataName.RetryAfter, out var espera))
+            contexto.HttpContext.Response.Headers.RetryAfter =
+                ((int)espera.TotalSeconds).ToString(NumberFormatInfo.InvariantInfo);
+
+        await contexto.HttpContext.Response.WriteAsJsonAsync(new
+        {
+            codigoRechazo = "DEMASIADOS_INTENTOS",
+            mensaje = "Demasiados intentos desde este dispositivo. Espera un momento y vuelve a probar.",
+        }, ct);
+    };
+});
+
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AlcanceLinea", policy => policy.Requirements.Add(new AlcanceLineaRequirement()));
@@ -164,8 +210,21 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
+// Revisión de producción, P-10. UseHttpsRedirection incondicional deja
+// fuera a los teléfonos cuando el servidor de planta sirve por HTTP en la
+// red local: la redirección los manda a un puerto que puede no existir o
+// tener un certificado que el dispositivo no confía, y el alta falla sin
+// explicación. Se hace explícito y configurable en vez de implícito:
+//
+//   Https:Redireccion = true   → obligatorio (lo correcto con certificado real)
+//   Https:Redireccion = false  → se sirve por HTTP dentro de la red de planta
+//
+// Por defecto sigue activado: bajarlo tiene que ser una decisión escrita
+// en la configuración del despliegue, nunca un descuido.
+if (app.Configuration.GetValue("Https:Redireccion", true))
+    app.UseHttpsRedirection();
 
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseMiddleware<ContextoSesionMiddleware>();
 app.UseAuthorization();

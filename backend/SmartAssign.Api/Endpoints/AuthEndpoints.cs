@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using SmartAssign.Application.Autenticacion;
 using SmartAssign.Infrastructure.Persistence;
 
@@ -14,7 +14,7 @@ public static class AuthEndpoints
 {
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
-        var grupo = app.MapGroup("/api/auth").AllowAnonymous();
+        var grupo = app.MapGroup("/api/auth").AllowAnonymous().RequireRateLimiting("credenciales");
 
         grupo.MapPost("/login", async (LoginPeticion peticion, IServicioAutenticacion servicio, CancellationToken ct) =>
         {
