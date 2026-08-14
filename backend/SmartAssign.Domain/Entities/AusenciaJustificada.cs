@@ -19,5 +19,13 @@ public class AusenciaJustificada
 
     public int RegistradoPor { get; set; }
 
+    /// <summary>
+    /// "real" | "simulado" (07 §4.4). La hoja "Personal ausente" del cliente
+    /// importa 'real'; la ausencia que la semilla adversaria fabrica para
+    /// forzar la vacante crítica (C1) es 'simulado' y la purga previa a
+    /// producción la borra — ver sp_PurgarDatosSimulados (UT-E14.7).
+    /// </summary>
+    public string OrigenDato { get; set; } = "real";
+
     public Personal Personal { get; set; } = default!;
 }

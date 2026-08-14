@@ -11,11 +11,15 @@ public class CapacidadFisicaConfig : IEntityTypeConfiguration<CapacidadFisica>
 {
     public void Configure(EntityTypeBuilder<CapacidadFisica> b)
     {
-        b.ToTable("CapacidadFisica");
+        b.ToTable("CapacidadFisica", t => t.HasCheckConstraint(
+            "CK_CapacidadFisica_origen_dato", "origen_dato IN ('real','simulado')"));
         b.HasKey(x => x.Id);
         b.Property(x => x.Codigo).HasColumnName("codigo").HasMaxLength(40).IsRequired();
         b.Property(x => x.Nombre).HasColumnName("nombre").HasMaxLength(120).IsRequired();
         b.Property(x => x.Activo).HasColumnName("activo").HasDefaultValue(true);
+        // 'simulado' por defecto — este catálogo nace inventado y espera a
+        // H6 (sesión con Enfermería). Ver CapacidadFisica.OrigenDato.
+        b.Property(x => x.OrigenDato).HasColumnName("origen_dato").HasMaxLength(20).HasDefaultValue("simulado");
         b.HasIndex(x => x.Codigo).IsUnique();
     }
 }

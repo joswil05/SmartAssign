@@ -17,6 +17,12 @@ public static class DatosCatalogo
 {
     public static CapacidadFisica[] Capacidades() =>
     [
+        // origen_dato = 'simulado' (por defecto, ver CapacidadFisicaConfig):
+        // estas seis palabras las escribió el desarrollo para poder probar
+        // la regla médica, no Enfermería. Mientras sigan marcadas así,
+        // sp_VerificarSinDatosSimulados se niega a dar la base por lista
+        // para producción — es H6 convertido en una comprobación y no en
+        // una línea de una tabla de bloqueos.
         new() { Id = 1, Codigo = "levantar_carga", Nombre = "Levantar carga" },
         new() { Id = 2, Codigo = "bipedestacion_prolongada", Nombre = "Bipedestación prolongada" },
         new() { Id = 3, Codigo = "movimiento_repetitivo_mano", Nombre = "Movimiento repetitivo de mano" },

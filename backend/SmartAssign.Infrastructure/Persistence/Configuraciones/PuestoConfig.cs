@@ -26,6 +26,10 @@ public class PuestoConfig : IEntityTypeConfiguration<Puesto>
             // sugerido — nulo en cualquiera de los dos no bloquea nada.
             t.HasCheckConstraint("CK_Puesto_umbrales",
                 "umbral_critico_horas IS NULL OR horas_en_puesto IS NULL OR umbral_critico_horas > horas_en_puesto");
+            // 07 §4.4 (UT-E14.7): sin 'simulado_categoria' — ese valor solo
+            // tiene sentido en Personal (00 §G1 re-etiqueta la categoría de
+            // una persona REAL); un puesto fabricado lo es por entero.
+            t.HasCheckConstraint("CK_Puesto_origen_dato", "origen_dato IN ('real','simulado')");
         });
 
         b.HasKey(x => x.Id);
@@ -42,6 +46,7 @@ public class PuestoConfig : IEntityTypeConfiguration<Puesto>
         b.Property(x => x.HorasRecuperacion).HasColumnName("horas_recuperacion");
         b.Property(x => x.TitularId).HasColumnName("titular_id");
         b.Property(x => x.Activo).HasColumnName("activo").HasDefaultValue(true);
+        b.Property(x => x.OrigenDato).HasColumnName("origen_dato").HasMaxLength(20).HasDefaultValue("real");
         b.Property(x => x.RowVersion).HasColumnName("row_version").IsRowVersion();
 
         b.HasOne(x => x.Linea).WithMany().HasForeignKey(x => x.LineaId).OnDelete(DeleteBehavior.Restrict);

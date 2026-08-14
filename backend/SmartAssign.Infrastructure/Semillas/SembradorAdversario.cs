@@ -14,7 +14,17 @@ namespace SmartAssign.Infrastructure.Semillas;
 /// desarrollo — ver herramientas/SemillaAdversariaCli.
 ///
 /// Todas las filas que crea quedan marcadas <c>origen_dato</c> ≠ 'real'
-/// (Personal.OrigenDato, RestriccionMedica.OrigenDato).
+/// (Personal, RestriccionMedica, Puesto y AusenciaJustificada), que es lo
+/// que hace computables <c>sp_VerificarSinDatosSimulados</c> y
+/// <c>sp_PurgarDatosSimulados</c> (UT-E14.7, 07 §4.4).
+///
+/// <b>Lo que la purga NO puede deshacer</b>, y por eso una base que ha
+/// corrido esta semilla nunca se promueve a producción: además de
+/// insertar filas, la semilla MODIFICA filas reales en sitio sin guardar
+/// el valor anterior — <c>Linea.MinimoOperarios</c> (escenario 16, B5) y
+/// <c>Personal.Situacion</c>/<c>LineaFisicaActual</c> (escenarios 14-16).
+/// Producción se construye desde migraciones + importador real, nunca
+/// limpiando una base de desarrollo.
 /// </summary>
 public class SembradorAdversario(SmartAssignDbContext db)
 {
@@ -134,6 +144,7 @@ public class SembradorAdversario(SmartAssignDbContext db)
             TipoActividadId = tipoActividadId,
             TitularId = titularId,
             CategoriaTitular = null, // 00 §G5
+            OrigenDato = "simulado", // 07 §4.4 — sin esto la purga no lo ve
         };
         db.Puestos.Add(puesto);
         await db.SaveChangesAsync(ct);
@@ -239,6 +250,7 @@ public class SembradorAdversario(SmartAssignDbContext db)
                 FechaInicio = DateOnly.FromDateTime(DateTime.UtcNow),
                 FechaFin = null,
                 RegistradoPor = usuarioId,
+                OrigenDato = "simulado", // 07 §4.4 — la ausencia es fabricada, la persona no
             });
         }
         await db.SaveChangesAsync(ct);

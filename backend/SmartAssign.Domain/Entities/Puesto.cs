@@ -77,6 +77,16 @@ public class Puesto
     public int? TitularId { get; set; }
 
     public bool Activo { get; set; } = true;
+
+    /// <summary>
+    /// "real" | "simulado" (07 §4.4: "las filas simuladas llevan marca de
+    /// origen"). Los puestos de las líneas sin dato real (00 §G3) y los que
+    /// crea la semilla adversaria son fabricados; el importador (E3.6) solo
+    /// escribe 'real'. Es lo que hace computable la purga previa a
+    /// producción — ver sp_PurgarDatosSimulados (UT-E14.7).
+    /// </summary>
+    public string OrigenDato { get; set; } = "real";
+
     public byte[] RowVersion { get; set; } = default!;
 
     public Linea Linea { get; set; } = default!;

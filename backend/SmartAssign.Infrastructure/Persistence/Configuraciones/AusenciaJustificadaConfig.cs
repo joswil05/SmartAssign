@@ -8,8 +8,12 @@ public class AusenciaJustificadaConfig : IEntityTypeConfiguration<AusenciaJustif
 {
     public void Configure(EntityTypeBuilder<AusenciaJustificada> b)
     {
-        b.ToTable("AusenciaJustificada", t => t.HasCheckConstraint("CK_Ausencia_tipo",
-            "tipo IN ('vacaciones','permiso','cita_medica','subsidio','accidente_laboral','otro')"));
+        b.ToTable("AusenciaJustificada", t =>
+        {
+            t.HasCheckConstraint("CK_Ausencia_tipo",
+                "tipo IN ('vacaciones','permiso','cita_medica','subsidio','accidente_laboral','otro')");
+            t.HasCheckConstraint("CK_Ausencia_origen_dato", "origen_dato IN ('real','simulado')");
+        });
 
         b.HasKey(x => x.Id);
         b.Property(x => x.PersonalId).HasColumnName("personal_id");
@@ -17,6 +21,7 @@ public class AusenciaJustificadaConfig : IEntityTypeConfiguration<AusenciaJustif
         b.Property(x => x.FechaInicio).HasColumnName("fecha_inicio").HasColumnType("date");
         b.Property(x => x.FechaFin).HasColumnName("fecha_fin").HasColumnType("date");
         b.Property(x => x.RegistradoPor).HasColumnName("registrado_por");
+        b.Property(x => x.OrigenDato).HasColumnName("origen_dato").HasMaxLength(20).HasDefaultValue("real");
 
         b.HasOne(x => x.Personal).WithMany().HasForeignKey(x => x.PersonalId).OnDelete(DeleteBehavior.Restrict);
         b.HasOne<Usuario>().WithMany().HasForeignKey(x => x.RegistradoPor).OnDelete(DeleteBehavior.Restrict);

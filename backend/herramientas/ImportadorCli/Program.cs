@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using SmartAssign.Application.Importacion;
 using SmartAssign.Domain.Entities;
 using SmartAssign.Infrastructure.Autenticacion;
+using SmartAssign.Infrastructure.DatosSimulados;
 using SmartAssign.Infrastructure.Importacion;
 using SmartAssign.Infrastructure.Persistence;
 using SmartAssign.Infrastructure.Semillas;
@@ -14,6 +15,10 @@ using SmartAssign.Infrastructure.Semillas;
 //       — usuario con credenciales reales verificables por login (E6.3).
 //         Sirve para probar la app Android contra una Api real levantada
 //         de verdad (no la Api de pruebas en memoria). SOLO dev/test.
+//   verificar-produccion [conexion]   — ni una fila simulada (07 §4.4, UT-E14.7).
+//                                        Sale con código 1 si encuentra alguna.
+//   purgar-simulados [conexion]       — borra lo fabricado y revierte las
+//                                        categorías de 00 §G1 (UT-E14.7).
 
 const string ConexionPorDefecto = "Server=(localdb)\\MSSQLLocalDB;Database=SmartAssignDev;Trusted_Connection=True;TrustServerCertificate=True;";
 
@@ -23,6 +28,8 @@ if (args.Length < 1)
     Console.Error.WriteLine("  ImportadorCli importar <ruta-al-excel> [cadena-de-conexion]");
     Console.Error.WriteLine("  ImportadorCli sembrar-adversaria [cadena-de-conexion]");
     Console.Error.WriteLine("  ImportadorCli crear-usuario-prueba <username> <password> <rol> [lineaId] [cadena-de-conexion]");
+    Console.Error.WriteLine("  ImportadorCli verificar-produccion [cadena-de-conexion]");
+    Console.Error.WriteLine("  ImportadorCli purgar-simulados [cadena-de-conexion]");
     return 1;
 }
 
@@ -31,6 +38,8 @@ return args[0] switch
     "importar" => await EjecutarImportacionAsync(args),
     "sembrar-adversaria" => await EjecutarSiembraAdversariaAsync(args),
     "crear-usuario-prueba" => await EjecutarCrearUsuarioPruebaAsync(args),
+    "verificar-produccion" => await EjecutarVerificacionAsync(args),
+    "purgar-simulados" => await EjecutarPurgaAsync(args),
     var otro => Fallar($"Comando desconocido: '{otro}'"),
 };
 
@@ -201,6 +210,64 @@ async Task<int> EjecutarCrearUsuarioPruebaAsync(string[] argumentos)
 
     Console.WriteLine($"OK — usuario '{username}' (rol={rol}, id={usuario.Id}) listo con contraseña real."
         + (lineaId is { } lid ? $" Supervisa la línea {lid}." : ""));
+    return 0;
+}
+
+// UT-E14.7 (07 §4.4): "hay una prueba que falla si aparece una sola [fila
+// simulada] en la base de producción". La prueba automatizada vive en
+// PurgaDeDatosSimuladosTests; esto es la misma comprobación a mano, para
+// correrla contra la base real antes de dar por buena una carga.
+async Task<int> EjecutarVerificacionAsync(string[] argumentos)
+{
+    var cadenaConexion = argumentos.Length > 1 ? argumentos[1] : ConexionPorDefecto;
+    await using var db = await AbrirConContextoCoordinadorAsync(cadenaConexion);
+
+    var resultado = await new ServicioDatosSimulados(db).VerificarAsync();
+
+    Console.WriteLine("=== Verificación de producción (07 §4.4) ===");
+    Console.WriteLine("  Filas fabricadas (las borra 'purgar-simulados'):");
+    foreach (var fila in resultado.Detalle)
+        Console.WriteLine($"    {fila.Tabla,-24} {fila.Filas,6}");
+    Console.WriteLine("  Catálogo de desarrollo (NO se purga — se reemplaza):");
+    Console.WriteLine($"    {"CapacidadFisica (H6)",-24} {resultado.FilasPlaceholder,6}");
+
+    if (resultado.CodigoRechazo is null)
+    {
+        Console.WriteLine("OK — ni una sola fila simulada, y el vocabulario médico ya es el real.");
+        return 0;
+    }
+
+    Console.WriteLine($"RECHAZADO [{resultado.CodigoRechazo}]: {resultado.Mensaje}");
+    return 1;
+}
+
+async Task<int> EjecutarPurgaAsync(string[] argumentos)
+{
+    var cadenaConexion = argumentos.Length > 1 ? argumentos[1] : ConexionPorDefecto;
+    await using var db = await AbrirConContextoCoordinadorAsync(cadenaConexion);
+
+    var resultado = await new ServicioDatosSimulados(db).PurgarAsync();
+
+    Console.WriteLine("=== Purga de datos simulados (07 §4.4) ===");
+
+    if (resultado.CodigoRechazo is not null)
+    {
+        Console.WriteLine($"RECHAZADO [{resultado.CodigoRechazo}]: {resultado.Mensaje}");
+        foreach (var bloqueo in resultado.Bloqueos)
+            Console.WriteLine($"  {bloqueo.Tabla}.{bloqueo.Columna} → {bloqueo.ApuntaA}: {bloqueo.Filas} fila(s)");
+        return 1;
+    }
+
+    foreach (var fila in resultado.Detalle)
+        Console.WriteLine($"  {fila.Tabla,-32} {fila.Filas,6}");
+    Console.WriteLine($"OK — {resultado.FilasPurgadas} fila(s) purgadas o revertidas.");
+
+    // La semilla adversaria también modifica filas reales EN SITIO sin
+    // guardar el valor anterior (ver SembradorAdversario) — una base que
+    // la ha corrido no se promueve a producción ni después de purgarla.
+    Console.WriteLine();
+    Console.WriteLine("AVISO: producción se construye desde migraciones + importador real,");
+    Console.WriteLine("       nunca limpiando una base de desarrollo. Ver SembradorAdversario.");
     return 0;
 }
 
