@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -17,7 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.smartassign.app.ui.escaneo.EscaneoQrScreen
-import com.smartassign.app.ui.theme.ColorPeligro
+import com.smartassign.app.ui.theme.ColorPeligroTexto
 import com.smartassign.app.ui.theme.Spacing
 import com.smartassign.app.ui.theme.TouchTarget
 import com.smartassign.app.ui.theme.TypeBody
@@ -67,7 +67,7 @@ private fun VistaInstrucciones(onAbrirCamara: () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = Spacing.lg)
-                .height(TouchTarget.accionPrimaria)
+                .heightIn(min = TouchTarget.accionPrimaria)
                 .testTag("alta-dispositivo-abrir-camara")
         ) {
             Text("Abrir cámara")
@@ -82,7 +82,15 @@ private fun VistaVerificando() {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // §12.4: nunca un círculo girando a secas — siempre acompañado de
+        // qué está pasando. Es el mismo criterio que aplica
+        // `FlujoAsignacion.DialogoProcesando`.
         CircularProgressIndicator()
+        Text(
+            "Comprobando el servidor…",
+            style = TypeBody,
+            modifier = Modifier.padding(top = Spacing.md)
+        )
     }
 }
 
@@ -97,7 +105,7 @@ private fun VistaNoResponde(onReintentar: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Texto del propio mapa 02 §1.0.
-        Text("No se pudo llegar a ese servidor.", style = TypeBody, color = ColorPeligro)
+        Text("No se pudo llegar a ese servidor.", style = TypeBody, color = ColorPeligroTexto)
         Text(
             "Revisa que estés en la red de planta.",
             style = TypeCaption,
@@ -105,7 +113,10 @@ private fun VistaNoResponde(onReintentar: () -> Unit) {
         )
         Button(
             onClick = onReintentar,
-            modifier = Modifier.padding(top = Spacing.lg).testTag("alta-dispositivo-reintentar")
+            modifier = Modifier
+                .padding(top = Spacing.lg)
+                .heightIn(min = TouchTarget.accionTerciaria)
+                .testTag("alta-dispositivo-reintentar")
         ) {
             Text("Reintentar")
         }

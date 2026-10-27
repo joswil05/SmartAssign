@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -73,7 +74,19 @@ fun GrafoDeNavegacion(
     val paroActivo by cronometroViewModel.paro.collectAsState()
     val mostrarBanner by bannerViewModel.mostrarBanner.collectAsState()
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    // UT-E15.6 (08 §P0-1): `enableEdgeToEdge()` compromete a la app a
+    // dibujar por debajo de las barras del sistema y a apartar el
+    // contenido ella misma. No lo hacía en ningún punto, así que el
+    // banner de sin conexión —el aviso que §12.1 exige "permanente e
+    // inequívoco"— quedaba parcialmente bajo el reloj y la batería, y el
+    // botón primario de cada pantalla bajo la barra de navegación.
+    //
+    // El inset se aplica AQUÍ y no con un `Scaffold` por pantalla a
+    // propósito: el banner y el cronómetro viven fuera del `NavHost` para
+    // sobrevivir a la navegación (E11.3, E13.4), así que un `Scaffold` por
+    // destino dejaría sin proteger justo las dos barras que 03 §3.8 pide
+    // que sean persistentes. La raíz es el único punto que las cubre.
+    Column(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
         BannerSinSincronizar(visible = mostrarBanner)
         CronometroDeParo(paro = paroActivo)
 

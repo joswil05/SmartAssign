@@ -246,6 +246,7 @@ app.MapVersionAppEndpoints();
 app.MapCicloDeTurnoEndpoints();
 app.MapMaestrosEndpoints();
 app.MapOperacionEndpoints();
+app.MapPadronEndpoints();
 app.MapHub<PlantaHub>("/hub/planta");
 
 app.Run();

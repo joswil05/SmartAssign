@@ -290,6 +290,55 @@ El cambio de tamaño no es un rodeo para esquivar la norma: **corrige una incong
 
 *Impacta:* 03 (§2.1, §2.2).
 
+## A16 · Variantes de texto de los colores semánticos y par del banner de sin conexión — 🟢 Cerrada — cliente (delegada)
+
+**Origen: una auditoría de frontend, no una revisión de diseño.** `08_AUDITORIA_FRONTEND.md` midió los contrastes reales de todos los tokens en su uso real y encontró **cinco incumplimientos de `03 §5.2`** que ninguna de las pruebas existentes veía.
+
+### Por qué no los veía nadie
+
+`DesignTokensTest` cubre `TextPrimary` y `TextSecondary`; `TemaAplicadoContrasteTest` cubre `LocalContentColor`, `onPrimary` y el botón primario. Las dos nacieron de **A15**, que fue un bug de *texto por defecto*, y entre las dos cubren ese camino entero. Los colores semánticos entran por otro: se pasan a mano como `color = X` en cada `Text`, y ninguna prueba los recorría.
+
+| Token | Uso real | Daba | Exigía |
+|---|---|---|---|
+| `color.medico` | contador de la tarjeta y título del bloque médico | **2.92:1** | 7:1 |
+| `color.peligro` | texto de error en login, PIN y alta de dispositivo | 4.37:1 | 7:1 |
+| `color.alerta` | sello de frescura en alerta | 5.85:1 | 7:1 |
+| `color.border.strong` | borde de todo `OutlinedTextField` (`outline` de M3) | 2.12:1 | 3:1 |
+| `color.offline` | banner de sin conexión | 2.72:1 *(real)* / 3.26:1 *(el del brief)* | 7:1 |
+
+El caso médico es el más grave: no alcanzaba ni el 4.5:1 de AA, y `§2.1` justifica que ese color exista precisamente porque *"es la única información de la app cuyo malentendido produce daño físico a una persona"*.
+
+### La causa estructural: un token con dos trabajos
+
+`color.medico`, `color.peligro` y `color.alerta` son a la vez **relleno** (franja, icono, borde → 3:1) y **color de texto** (→ 7:1). Un solo valor no puede satisfacer los dos umbrales sin volverse pastel y perder la identidad que `§2.1` le pide.
+
+**Es exactamente la estructura de A15**, y se resuelve igual: en dos mitades. La identidad se queda donde estaba, para rellenos; una variante `…Texto` cubre el texto. Cada variante conserva **tono y saturación exactos** del original y solo sube la luminosidad.
+
+| Token nuevo | Valor | Tono/Sat | base / surface / raised |
+|---|---|---|---|
+| `color.medico.texto` | `#F195E4` | 309° / 77 % | 9.15 / 8.28 / 7.18 |
+| `color.peligro.texto` | `#F19C9E` | 358° / 75 % | 9.00 / 8.14 / 7.06 |
+| `color.alerta.texto` | `#E4A668` | 30° / 70 % | 8.96 / 8.11 / 7.04 |
+
+`color.border.strong` **no se desdobla**: solo se usa como borde, nunca como texto, así que se corrige en el sitio de `#455161` a `#617288` (mismo tono 214°, misma saturación 17 %) — 3.85 / 3.48 / 3.02.
+
+### El banner de sin conexión: la ventana vacía, otra vez
+
+Aquí la aritmética de A15 **se repite literalmente**, y por eso esta parte se consultó al cliente en vez de resolverla sola.
+
+Para que el banner lea como un **bloque** distinguible del fondo de la app hace falta un fondo a 3:1 sobre `bg.base`, o sea luminancia ≥ 0.1165. Para que el texto sobre ese fondo alcance 7:1 haría falta luminancia ≥ **1.116**. Mayor que 1: *ningún par de colores cumple las dos condiciones.*
+
+**El cliente delegó la elección** (misma fórmula que en A15) y se eligió la opción que conserva la familia cromática del token original:
+
+- **`color.offline.fg` = `#E8C88A`** — texto, icono **y borde**. Da **9.82:1** sobre el fondo del banner.
+- **`color.offline.bg` = `#2B2113`** — sin cambio, tal como lo fijó `03 §2.1`.
+
+El fondo se queda oscuro y **quien define el bloque es el borde, no el fondo**. Es el mismo recurso que ya usaba `CronometroDeParo` (superficie + borde de 1 dp), así que no introduce un patrón nuevo.
+
+> **Guarda contra regresión:** `ContrasteSemanticoTest` recorre una **tabla de pares (color, superficie, umbral)** derivada de `§2.1`, en vez de aserciones escritas token a token. Un color nuevo entra a la verificación por estar en la tabla, no por que alguien se acuerde de escribirle una prueba — que es el olvido exacto que produjo estos cinco. Cada token declara además las superficies sobre las que de verdad se dibuja, para no exigirle contraste sobre un fondo donde nunca aparece: hacerlo obligaría a reabrir A15, que está cerrada.
+
+*Impacta:* 03 (§2.1), 08 (§P0-2, §P1-3, §P1-4, §P1-5, §D-1).
+
 ## A9b · Vigencia del anexo de arquitectura — 🟡 Supuesto declarado
 
 El anexo se declara complementario a la v3.0 y la especificación vigente es la v3.3. **Se procede asumiendo que sigue vigente**: solo prescribe plataforma (Android nativo, SQL Server, API intermedia obligatoria) y nada de eso fue tocado entre v3.0 y v3.3.

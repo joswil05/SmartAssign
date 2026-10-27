@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
@@ -65,7 +65,7 @@ private fun VistaInstrucciones(onAbrirCamara: () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = Spacing.lg)
-                .height(TouchTarget.accionPrimaria)
+                .heightIn(min = TouchTarget.accionPrimaria)
                 .testTag("escaneo-gafete-abrir-camara")
         ) {
             Text("Abrir cámara")

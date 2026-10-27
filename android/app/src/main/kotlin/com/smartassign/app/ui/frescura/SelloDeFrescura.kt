@@ -6,7 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import com.smartassign.app.ui.theme.ColorAlerta
+import com.smartassign.app.ui.theme.ColorAlertaTexto
 import com.smartassign.app.ui.theme.TextSecondary
 import com.smartassign.app.ui.theme.TypeCaption
 import java.time.Duration
@@ -67,7 +67,7 @@ fun SelloDeFrescura(cacheadoEn: Instant, modifier: Modifier = Modifier) {
     Text(
         text = textoSelloDeFrescura(cacheadoEn, ahora),
         style = TypeCaption,
-        color = if (nivel == NivelFrescura.Alerta) ColorAlerta else TextSecondary,
+        color = if (nivel == NivelFrescura.Alerta) ColorAlertaTexto else TextSecondary,
         modifier = modifier.testTag("sello-de-frescura")
     )
 }

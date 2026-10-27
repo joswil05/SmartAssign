@@ -17,7 +17,21 @@ val BgSurface = Color(0xFF171C23)
 val BgSurfaceRaised = Color(0xFF212832)
 val BgOverlay = Color(0xB8000000) // #000000 @ 72% — fondo de modal
 val BorderSubtle = Color(0xFF2C3540)
-val BorderStrong = Color(0xFF455161)
+
+/**
+ * Borde de componente interactivo — **aclarado de `#455161` a `#617288`**
+ * (E15.3). Mismo tono (214°) y misma saturación (17 %), solo más claro.
+ *
+ * Por qué: Material3 lo recibe como `outline`, así que es el borde de todo
+ * `OutlinedTextField` — y el borde **es** la única afordancia visual del
+ * campo. El valor anterior daba 2.34:1 sobre `BgBase` y 2.12:1 sobre
+ * `BgSurface`, por debajo del 3:1 que `03 §5.2` exige a los elementos de
+ * interfaz. Un campo cuyo borde no se distingue no se ve.
+ *
+ * El valor nuevo cumple en las **tres** superficies (3.85 / 3.48 / 3.02),
+ * incluida `BgSurfaceRaised`, que es el peor caso por ser la más clara.
+ */
+val BorderStrong = Color(0xFF617288)
 val TextPrimary = Color(0xFFF4F7FA)
 val TextSecondary = Color(0xFFB4BFCC)
 val TextDisabled = Color(0xFF6B7684)
@@ -59,5 +73,64 @@ val ColorAlerta = Color(0xFFD9822B)
 val ColorPeligro = Color(0xFFE5484D)
 val ColorMedico = Color(0xFFB5179E) // exclusivo de restricciones médicas — §7.2, §12.2
 val ColorTransito = Color(0xFF7B5CD6)
-val ColorOfflineFg = Color(0xFF8A6D3B) // banner de sin conexión — texto/icono
-val ColorOfflineBg = Color(0xFF2B2113) // banner de sin conexión — fondo
+
+/**
+ * ── Variantes de TEXTO de los semánticos (E15.3) ──
+ *
+ * **Por qué existen, y por qué no basta con mover el token original.**
+ *
+ * `ColorMedico`, `ColorPeligro` y `ColorAlerta` hacen dos trabajos con dos
+ * umbrales distintos de `03 §5.2`: como franja, relleno o icono son
+ * *elementos de interfaz* (3:1), y como color de un `Text` son *texto
+ * normal* (7:1). Sus valores de identidad cumplen el primero y fallan el
+ * segundo — medido, no estimado:
+ *
+ * | Token           | sobre `BgBase` | sobre `BgSurface` | exige |
+ * |-----------------|----------------|-------------------|-------|
+ * | `ColorMedico`   | 3.22:1         | **2.92:1**        | 7:1   |
+ * | `ColorPeligro`  | 4.83:1         | 4.37:1            | 7:1   |
+ * | `ColorAlerta`   | 6.46:1         | 5.85:1            | 7:1   |
+ *
+ * El caso médico es el más grave: no alcanza ni el 4.5:1 de AA, y `§2.1`
+ * justifica que ese color exista precisamente porque *"es la única
+ * información de la app cuyo malentendido produce daño físico a una
+ * persona"*.
+ *
+ * Mover el token original a un valor legible lo volvería pastel y le
+ * quitaría la identidad que `§2.1` le pide. **Es la misma estructura de
+ * A15**: el problema no se arregla con un solo valor, se arregla
+ * partiéndolo en las dos mitades que de verdad tiene. La identidad se
+ * queda arriba, para rellenos; estas variantes cubren el texto.
+ *
+ * Cada una conserva tono y saturación exactos del original —solo sube la
+ * luminosidad— y cumple 7:1 en las **tres** superficies, incluida
+ * `BgSurfaceRaised`, que es el peor caso por ser la más clara.
+ */
+val ColorMedicoTexto = Color(0xFFF195E4)  // 309°/77% — 9.15 / 8.28 / 7.18
+val ColorPeligroTexto = Color(0xFFF19C9E) // 358°/75% — 9.00 / 8.14 / 7.06
+val ColorAlertaTexto = Color(0xFFE4A668)  // 30°/70%  — 8.96 / 8.11 / 7.04
+
+/**
+ * Banner de sin conexión (D-1, cerrada por el cliente en E15.7).
+ *
+ * **El par que traía `03 §2.1` no cumplía su propia norma**: `#8A6D3B`
+ * sobre `#2B2113` da 3.26:1, y el rótulo va en `TypeBodyStrong` (18 sp),
+ * que por `§5.2` es texto normal y exige 7:1. El código, además, ni
+ * siquiera usaba estos tokens: pintaba `TextPrimary` sobre `ColorAlerta`
+ * — **2.72:1**, por debajo incluso de AA.
+ *
+ * **Y aquí se repite la aritmética de A15, literalmente.** Para que el
+ * banner lea como un bloque distinguible del fondo de la app hace falta
+ * un fondo a 3:1 sobre `BgBase`, o sea luminancia ≥ 0.1165; para que el
+ * texto sobre ese fondo llegue a 7:1 haría falta luminancia ≥ 1.116.
+ * **Mayor que 1: la ventana vuelve a estar vacía, ningún par cumple las
+ * dos.**
+ *
+ * Se resuelve en dos mitades, igual que A15: el fondo se queda oscuro
+ * —el `#2B2113` que el brief eligió— y quien define el bloque es un
+ * **borde** en el color de primer plano, no el propio fondo. Es el mismo
+ * recurso que ya usa `CronometroDeParo` (superficie + borde de 1 dp), así
+ * que no introduce un patrón nuevo.
+ */
+val ColorOfflineFg = Color(0xFFE8C88A) // texto, icono y borde — 9.82:1 sobre el fondo del banner
+val ColorOfflineBg = Color(0xFF2B2113) // fondo del banner, tal como lo fijó 03 §2.1

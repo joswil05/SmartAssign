@@ -4,9 +4,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
@@ -20,7 +23,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.smartassign.app.ui.theme.ColorPeligro
+import com.smartassign.app.ui.theme.ColorPeligroTexto
 import com.smartassign.app.ui.theme.Spacing
 import com.smartassign.app.ui.theme.TouchTarget
 import com.smartassign.app.ui.theme.TypeBody
@@ -35,9 +38,13 @@ fun PinScreen(
 ) {
     val estado by viewModel.uiState.collectAsState()
 
+    // UT-E15.2 (08 §P0-3): el teclado numérico del PIN tapaba el botón
+    // "Desbloquear" sin dejar forma de alcanzarlo.
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .imePadding()
             .testTag("pantalla-pin")
             .padding(Spacing.xl),
         verticalArrangement = Arrangement.Center,
@@ -64,7 +71,7 @@ fun PinScreen(
             Text(
                 text = estado.error!!,
                 style = TypeCaption,
-                color = ColorPeligro,
+                color = ColorPeligroTexto,
                 modifier = Modifier.padding(top = Spacing.md).testTag("pin-error")
             )
         }
@@ -77,7 +84,7 @@ fun PinScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = Spacing.lg)
-                    .height(TouchTarget.accionPrimaria)
+                    .heightIn(min = TouchTarget.accionPrimaria)
                     .testTag("pin-verificar")
             ) {
                 Text("Desbloquear")

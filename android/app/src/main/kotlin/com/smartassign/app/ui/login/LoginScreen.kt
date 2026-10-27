@@ -6,9 +6,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
@@ -23,7 +26,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.smartassign.app.data.version.ResultadoVersion
-import com.smartassign.app.ui.theme.ColorPeligro
+import com.smartassign.app.ui.theme.ColorPeligroTexto
 import com.smartassign.app.ui.theme.Spacing
 import com.smartassign.app.ui.theme.TouchTarget
 import com.smartassign.app.ui.theme.TypeCaption
@@ -43,7 +46,12 @@ fun LoginScreen(
         // 00 §F3: por debajo del mínimo, se bloquea de verdad — el
         // formulario ni se muestra, no solo se deshabilita.
         Column(
-            modifier = Modifier.fillMaxSize().testTag("pantalla-login-bloqueada").padding(Spacing.xl),
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .imePadding()
+                .testTag("pantalla-login-bloqueada")
+                .padding(Spacing.xl),
             verticalArrangement = Arrangement.Center
         ) {
             Text("Actualización requerida", style = TypeTitle)
@@ -57,7 +65,7 @@ fun LoginScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = Spacing.lg)
-                    .height(TouchTarget.accionPrimaria)
+                    .heightIn(min = TouchTarget.accionPrimaria)
                     .testTag("login-descargar-actualizacion-bloqueante"),
             ) {
                 Text("Descargar actualización")
@@ -66,9 +74,17 @@ fun LoginScreen(
         return
     }
 
+    // UT-E15.2 (08 §P0-3): sin `verticalScroll` el contenido no cabía en
+    // pantalla corta —titulo + banner de actualizacion + dos campos + dos
+    // lineas de error + boton— y sin `imePadding()` el teclado tapaba el
+    // boton primario, dejandolo inalcanzable. Con scroll, `Arrangement.Center`
+    // sigue centrando mientras cabe y pasa a alinear arriba cuando desborda,
+    // que es exactamente el comportamiento que se quiere.
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .imePadding()
             .testTag("pantalla-login")
             .padding(Spacing.xl),
         verticalArrangement = Arrangement.Center
@@ -82,7 +98,10 @@ fun LoginScreen(
                 Text("Hay una versión nueva disponible: ${disponible.versionNombre}", style = TypeCaption)
                 Button(
                     onClick = { abrirDescarga(disponible.descargaUrl) },
-                    modifier = Modifier.padding(top = Spacing.xs).testTag("login-descargar-actualizacion-disponible"),
+                    modifier = Modifier
+                        .padding(top = Spacing.xs)
+                        .heightIn(min = TouchTarget.accionTerciaria)
+                        .testTag("login-descargar-actualizacion-disponible"),
                 ) {
                     Text("Descargar")
                 }
@@ -117,7 +136,7 @@ fun LoginScreen(
             Text(
                 text = estado.error!!,
                 style = TypeCaption,
-                color = ColorPeligro,
+                color = ColorPeligroTexto,
                 modifier = Modifier.padding(top = Spacing.md).testTag("login-error")
             )
             estado.siguientePaso?.let {
@@ -135,7 +154,7 @@ fun LoginScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = Spacing.lg)
-                    .height(TouchTarget.accionPrimaria)
+                    .heightIn(min = TouchTarget.accionPrimaria)
                     .testTag("login-entrar"),
             ) {
                 Text("Entrar")

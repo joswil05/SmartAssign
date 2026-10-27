@@ -1,6 +1,7 @@
 package com.smartassign.app.ui.frescura
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -14,7 +15,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import com.smartassign.app.ui.theme.ColorAlerta
+import androidx.compose.ui.unit.dp
+import com.smartassign.app.ui.theme.ColorOfflineBg
+import com.smartassign.app.ui.theme.ColorOfflineFg
 import com.smartassign.app.ui.theme.Spacing
 import com.smartassign.app.ui.theme.TypeBodyStrong
 
@@ -32,19 +35,35 @@ import com.smartassign.app.ui.theme.TypeBodyStrong
 fun BannerSinSincronizar(visible: Boolean, modifier: Modifier = Modifier) {
     if (!visible) return
 
+    // UT-E15.7 (08 §D-1, cerrada por el cliente): antes pintaba
+    // `TextPrimary` sobre `ColorAlerta` — 2.72:1, por debajo incluso de
+    // AA— y no usaba ninguno de los dos tokens que 03 §2.1 había definido
+    // para este banner. El fondo se queda oscuro (el `#2B2113` del brief)
+    // y quien define el bloque es el BORDE, no el fondo: con un fondo
+    // claro suficiente para destacar (≥3:1 sobre la app) ningún texto
+    // alcanza 7:1, la misma ventana vacía que resolvió A15.
+    //
+    // `mergeDescendants` es lo que hace que TalkBack lo anuncie UNA vez:
+    // sin él, el `contentDescription` del contenedor convivía con el texto
+    // y el aviso se leía dos veces.
     Row(
         modifier = modifier
             .testTag("banner-sin-sincronizar")
             .fillMaxWidth()
-            .background(ColorAlerta)
+            .background(ColorOfflineBg)
+            .border(width = 1.dp, color = ColorOfflineFg)
             .padding(horizontal = Spacing.md, vertical = Spacing.sm)
-            .semantics { contentDescription = "Pendiente de sincronización" },
+            .semantics(mergeDescendants = true) {
+                contentDescription =
+                    "Pendiente de sincronización. No mover al personal hasta recuperar la red."
+            },
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(Icons.Filled.CloudOff, contentDescription = null)
+        Icon(Icons.Filled.CloudOff, contentDescription = null, tint = ColorOfflineFg)
         Text(
             text = "Pendiente de sincronización — no mover al personal hasta recuperar la red.",
             style = TypeBodyStrong,
+            color = ColorOfflineFg,
             modifier = Modifier.padding(start = Spacing.sm)
         )
     }

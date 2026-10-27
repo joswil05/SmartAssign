@@ -5,9 +5,15 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -26,7 +32,7 @@ import com.smartassign.app.ui.comun.etiquetaCategoria
 import com.smartassign.app.ui.estado.EstadoPantalla
 import com.smartassign.app.ui.estado.PantallaConEstado
 import com.smartassign.app.ui.theme.BgSurface
-import com.smartassign.app.ui.theme.ColorMedico
+import com.smartassign.app.ui.theme.ColorMedicoTexto
 import com.smartassign.app.ui.theme.Elevation
 import com.smartassign.app.ui.theme.Radius
 import com.smartassign.app.ui.theme.Spacing
@@ -97,7 +103,7 @@ fun ModalConfirmacionIdentidad(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = Spacing.md)
-                        .height(TouchTarget.accionSecundaria)
+                        .heightIn(min = TouchTarget.accionSecundaria)
                         .testTag("modal-confirmacion-cancelar")
                 ) { Text("Cancelar") }
             }
@@ -148,7 +154,7 @@ private fun ContenidoConfirmacion(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = Spacing.lg)
-                .height(TouchTarget.accionPrimaria)
+                .heightIn(min = TouchTarget.accionPrimaria)
                 .testTag("modal-confirmacion-confirmar")
         ) { Text("CONFIRMAR ASIGNACIÓN") }
     }
@@ -165,11 +171,24 @@ private fun BloqueRestriccionesMedicas(restricciones: List<String>) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = Spacing.md)
-            .border(2.dp, ColorMedico, RoundedCornerShape(Radius.sm))
+            .border(2.dp, ColorMedicoTexto, RoundedCornerShape(Radius.sm))
             .padding(Spacing.md)
             .testTag("modal-confirmacion-bloque-medico")
     ) {
-        Text("⚕ RESTRICCIONES MÉDICAS ACTIVAS", style = TypeCaption, color = ColorMedico)
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Icon(
+                Icons.Filled.LocalHospital,
+                contentDescription = null,
+                tint = ColorMedicoTexto,
+                modifier = Modifier.size(18.dp)
+            )
+            Text(
+                "RESTRICCIONES MÉDICAS ACTIVAS",
+                style = TypeCaption,
+                color = ColorMedicoTexto,
+                modifier = Modifier.padding(start = Spacing.xs)
+            )
+        }
         if (restricciones.isEmpty()) {
             Text(
                 "Sin restricciones médicas registradas",

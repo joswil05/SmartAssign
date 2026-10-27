@@ -38,6 +38,28 @@
 
 ---
 
+## E15 · Auditoría de frontend — conformidad y accesibilidad *(7/7)* ✅
+
+Origen: `08_AUDITORIA_FRONTEND.md`, auditoría del cliente Android sobre `83bb958`. **No es rediseño**: cada UT corrige una desviación medida respecto de una regla que el propio proyecto ya había escrito. Decisión de negocio asociada: **A16** (delegada por el cliente, misma fórmula que A15).
+
+- [x] **E15.1** `safeDrawingPadding()` en la raíz — `enableEdgeToEdge()` estaba activo sin **ninguna** referencia a insets en toda la app
+  - VERIFICADO: `ConformidadDePlataformaTest` — si `MainActivity` llama a `enableEdgeToEdge()`, la raíz debe apartar los insets. El banner de sin conexión quedaba bajo el reloj del sistema
+- [x] **E15.2** `verticalScroll` + `imePadding()` en `LoginScreen` y `PinScreen`
+  - VERIFICADO: `ConformidadDePlataformaTest` — toda pantalla con campos hace scroll y aparta el teclado. Antes, con el teclado abierto el botón primario era inalcanzable
+- [x] **E15.3** Variantes `…Texto` de los semánticos + `BorderStrong` corregido (A16)
+  - VERIFICADO: `ContrasteSemanticoTest` — tabla de pares (color, superficie, umbral) derivada de `03 §2.1`, no aserciones token a token. Corregía 5 incumplimientos, el peor `ColorMedico` a **2.92:1** (ni AA) en el dato que §7.2 protege con regla dura
+- [x] **E15.4** Semántica de accesibilidad: indicador médico, marca de agua, banner
+  - VERIFICADO: `AnunciosDeAccesibilidadTest` — el indicador médico se anuncia *"N restricciones médicas activas"*; antes TalkBack leía el número suelto **"2"**. ⚠ **Instrumentada, sin ejecutar: no había emulador en la sesión**
+- [x] **E15.5** `.height()` → `.heightIn(min=)` en 8 botones + altura en los 3 que no la declaraban
+  - VERIFICADO: `ConformidadDePlataformaTest` barre el árbol de fuentes y falla si algún control fija altura exacta con un token de zona de toque. `03 §2.2` promete 130 % de escala y una altura exacta recorta el rótulo
+  - **Tercer botón encontrado durante la corrección**, no en la auditoría: `login-descargar-actualizacion-disponible` (E14.6) tampoco declaraba altura
+- [x] **E15.6** Respetar *Quitar animaciones* del sistema en los dos pulsos infinitos
+  - VERIFICADO: `PulsoDeFatigaTest` — la regla se extrajo a `pulsaPorFatigaCritica()`, pura. Al desactivar, el alfa queda en **1** y nunca congelado a 0.5: el pulso crítico es un canal de información y a medio alfa se vería más débil que *sugerido*, invirtiendo la escala (§1.3)
+- [x] **E15.7** Par de color del banner de sin conexión — **cierra D-1** (A16)
+  - VERIFICADO: `ContrasteSemanticoTest` — 9.82:1 de texto y 11.76:1 de borde. El par que publicaba `03 §2.1` daba 3.26:1 y el código pintaba 2.72:1, por debajo de AA
+
+> **Lo que esta etapa deja pendiente:** `E16` (coherencia del sistema de diseño: medidas fuera de la escala de 4 dp, niveles de elevación declarados y sin usar, esqueleto de "verificando") y **correr en emulador** `AnunciosDeAccesibilidadTest`. Las unitarias sí corrieron todas en verde; los `*IntegrationTest` fallan por no haber backend en `localhost:5081`, no por esta etapa.
+
 ## E0 · Entorno *(3/3)* ✅
 
 - [x] **E0.1** Fijar `JAVA_HOME` al JBR de Android Studio; comprobar Gradle y LocalDB

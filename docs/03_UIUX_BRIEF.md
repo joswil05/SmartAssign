@@ -38,7 +38,7 @@ Definidos como tokens semánticos, no como nombres de color. Un token dice **par
 | `color.bg.surface.raised` | `#212832` | Tarjeta seleccionada, modal |
 | `color.bg.overlay` | `#000000` @ 72 % | Fondo de modal |
 | `color.border.subtle` | `#2C3540` | Separadores |
-| `color.border.strong` | `#455161` | Borde de componente interactivo |
+| `color.border.strong` | `#617288` | Borde de componente interactivo *(A16 — el `#455161` anterior daba 2.12:1, bajo el 3:1 de §5.2)* |
 | `color.text.primary` | `#F4F7FA` | Texto principal |
 | `color.text.secondary` | `#B4BFCC` | Texto de apoyo, micro-copia |
 | `color.text.disabled` | `#6B7684` | Solo texto no accionable |
@@ -77,15 +77,23 @@ Cinco estados que **nunca** pueden confundirse entre sí. Cada uno tiene color, 
 |---|---|---|
 | `color.accion.primaria` | `#145DEB` | Botón de acción principal *(A15)* |
 | `color.exito` | `#3FA76A` | Confirmación completada |
-| `color.alerta` | `#D9822B` | Advertencia no bloqueante |
-| `color.peligro` | `#E5484D` | Rechazo, restricción médica, paro |
-| `color.medico` | `#B5179E` | **Exclusivo de restricciones médicas** |
-| `color.offline` | `#8A6D3B` sobre `#2B2113` | Banner de sin conexión |
+| `color.alerta` | `#D9822B` | Advertencia no bloqueante — **relleno e icono** |
+| `color.alerta.texto` | `#E4A668` | Lo mismo, **como color de texto** *(A16)* |
+| `color.peligro` | `#E5484D` | Rechazo, restricción médica, paro — **relleno, borde e icono** |
+| `color.peligro.texto` | `#F19C9E` | Lo mismo, **como color de texto** *(A16)* |
+| `color.medico` | `#B5179E` | **Exclusivo de restricciones médicas** — relleno |
+| `color.medico.texto` | `#F195E4` | Lo mismo, **como texto, icono y borde** *(A16)* |
+| `color.offline.fg` | `#E8C88A` | Banner de sin conexión — texto, icono y borde *(A16)* |
+| `color.offline.bg` | `#2B2113` | Banner de sin conexión — fondo |
 | `color.transito` | `#7B5CD6` | Persona en tránsito, puesto reservado |
 
 > **Por qué las restricciones médicas tienen color propio** *(§7.2, §12.2)*: es la única información de la app cuyo malentendido produce daño físico a una persona. No comparte color con ninguna otra alerta para que nunca se confunda con un aviso operativo ordinario. Y aun así **nunca se comunica solo con ese color**: siempre lleva icono y texto explícito (principio 4).
 
 > **A15 · Por qué `color.accion.primaria` se oscureció de `#2F6FED` a `#145DEB`.** Mismo tono (220°) y misma saturación (84 %), solo más profundo. El azul original dejaba el rótulo del botón en **4.19:1**, por debajo de los 4.5:1 que §5.2 pide incluso a texto grande. La corrección no pudo ser solo cromática: sobre `bg.base` (`#0E1116`, luminancia 0.0055) las dos reglas de §5.2 **se excluyen entre sí** — para que el texto alcance 7:1 el azul necesita luminancia ≤ 0.100 (aun con blanco puro), y para que el botón se distinga del fondo a 3:1 necesita ≥ 0.1166. *Ningún color cumple las dos.* `#145DEB` es el punto que maximiza el contraste del rótulo (**5.15:1**) conservando **3.42:1** de botón contra fondo; el resto del camino lo hace `type.action` (§2.2), que lleva el rótulo al rango de texto grande. Un azul más oscuro haría el texto más legible dentro de un botón que se pierde contra el fondo — cambiar un problema de accesibilidad por otro.
+
+> **A16 · Por qué tres tokens llevan una variante `.texto`.** `color.medico`, `color.peligro` y `color.alerta` hacen dos trabajos con dos umbrales distintos de §5.2: como franja, relleno o icono son *elementos de interfaz* (3:1); como color de un texto son *texto normal* (7:1). Sus valores de identidad cumplían el primero y fallaban el segundo — el médico daba **2.92:1**, por debajo incluso de AA, en el único dato de la app cuyo malentendido produce daño físico. Moverlos a un valor legible los habría vuelto pastel y les habría quitado la identidad que este mismo apartado les pide, así que se parten en dos mitades, **igual que A15**: la identidad se queda arriba, la variante `.texto` cubre la lectura. Cada variante conserva tono y saturación exactos del original y solo sube la luminosidad, y cumple 7:1 sobre las tres superficies de la tabla base.
+
+> **A16 · Por qué el banner de sin conexión lleva borde.** El par que este documento publicaba —`#8A6D3B` sobre `#2B2113`— daba 3.26:1 con un rótulo de 18 sp que §5.2 clasifica como texto normal y exige a 7:1. **La ventana vuelve a estar vacía, como en A15**: para que el banner se distinga del fondo de la app como bloque necesita un fondo con luminancia ≥ 0.1165, y para que el texto sobre ese fondo llegue a 7:1 haría falta luminancia ≥ 1.116 — mayor que 1, imposible. Se resuelve en dos mitades: el fondo se queda oscuro y **quien define el bloque es el borde**, en `color.offline.fg`. Mismo recurso que ya usa el cronómetro de paro (§3.8): superficie más borde de 1 dp.
 
 ## 2.2 Escala tipográfica
 
@@ -673,7 +681,7 @@ Reglas: nombre propio siempre que se hable de una persona · número de puesto y
 | 4.5 Panel Bolsón | C7, C8 |
 | 4.6 Datos maestros en teléfono | §2.1.10, F4, A1, A3 |
 | 5.1 Zonas de toque 48/64 dp | §12.3, **A11** |
-| 5.2 Contraste AAA | §12.3 |
+| 5.2 Contraste AAA | §12.3, **A15**, **A16** |
 | 5.3 Nunca solo color | §12.2 |
 | 5.5 Doble toque | §12.4 |
 | 6.2 Aislamiento visual | §2.2, D1, D2, D3 |

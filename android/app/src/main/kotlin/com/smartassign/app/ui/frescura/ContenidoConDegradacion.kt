@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import com.smartassign.app.ui.theme.TextSecondary
 import com.smartassign.app.ui.theme.TypeLabel
 import java.time.Instant
@@ -59,6 +60,11 @@ fun ContenidoConDegradacion(cacheadoEn: Instant, modifier: Modifier = Modifier, 
                         .testTag("marca-de-agua-sin-sincronizar")
                         .alpha(0.5f)
                         .rotate(-25f)
+                        // UT-E15.4 (08 §P2-2): es una marca visual, no
+                        // contenido. Sin esto TalkBack la lee intercalada
+                        // entre los datos degradados; el aviso hablado ya
+                        // lo da `BannerSinSincronizar`.
+                        .clearAndSetSemantics {}
                 )
             }
         }

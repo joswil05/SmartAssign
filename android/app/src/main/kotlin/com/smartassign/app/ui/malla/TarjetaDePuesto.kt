@@ -34,10 +34,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.smartassign.app.data.malla.PuestoMalla
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.smartassign.app.ui.comun.animacionesActivas
 import com.smartassign.app.ui.comun.etiquetaCategoria
 import com.smartassign.app.ui.theme.BgBase
 import com.smartassign.app.ui.theme.BgSurface
-import com.smartassign.app.ui.theme.ColorMedico
+import com.smartassign.app.ui.theme.ColorMedicoTexto
 import com.smartassign.app.ui.theme.EstadoCritico
 import com.smartassign.app.ui.theme.EstadoDescubierto
 import com.smartassign.app.ui.theme.EstadoFuera
@@ -107,9 +110,24 @@ fun TarjetaDePuesto(puesto: PuestoMalla, modifier: Modifier = Modifier) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     Text("Ficha ${ocupante.ficha} · ${etiquetaCategoria(ocupante.categoria)}", style = TypeBody, color = TextSecondary)
                     if (puesto.indicadorMedico > 0) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.LocalHospital, contentDescription = null, tint = ColorMedico)
-                            Text(" ${puesto.indicadorMedico}", style = TypeBody, color = ColorMedico)
+                        // UT-E15.4 (08 §P1-1): el icono iba con
+                        // `contentDescription = null` y el contador era un
+                        // nodo suelto, así que TalkBack leía literalmente
+                        // "2" — sin decir de qué. Es el dato que §7.2
+                        // protege con una regla dura, y era el peor
+                        // anunciado de la pantalla. Se fusiona el par en un
+                        // solo nodo con su propia frase.
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .semantics(mergeDescendants = true) {
+                                    contentDescription =
+                                        "${puesto.indicadorMedico} restricciones médicas activas"
+                                }
+                                .testTag("tarjeta-puesto-${puesto.id}-indicador-medico")
+                        ) {
+                            Icon(Icons.Filled.LocalHospital, contentDescription = null, tint = ColorMedicoTexto)
+                            Text(" ${puesto.indicadorMedico}", style = TypeBody, color = ColorMedicoTexto)
                         }
                     }
                 }
@@ -149,7 +167,7 @@ private fun BarraDeFatiga(nivel: String, exceso: Double?, puestoId: Int, modifie
     }
     val fraccionLlena = ((exceso ?: 0.0) / 100.0).coerceIn(0.0, 1.0).toFloat()
 
-    val alfaPulso = if (nivel == "critico") {
+    val alfaPulso = if (pulsaPorFatigaCritica(nivel, animacionesActivas())) {
         val transicion = rememberInfiniteTransition(label = "pulso-fatiga-critica")
         val alfa by transicion.animateFloat(
             initialValue = 0.5f,
@@ -159,7 +177,7 @@ private fun BarraDeFatiga(nivel: String, exceso: Double?, puestoId: Int, modifie
         )
         alfa
     } else {
-        1f
+        ALFA_PLENO
     }
 
     Row(
@@ -216,3 +234,27 @@ private fun colorDeSituacion(situacion: String) = when (situacion) {
 }
 
 private fun etiquetaTipo(tipo: String) = if (tipo == "fijo") "Fijo" else "Rotativo"
+
+/**
+ * Opacidad plena. UT-E15.6 (08 §P1-8): es el valor al que cae el pulso
+ * cuando NO se anima, y la constante existe para que nadie lo confunda con
+ * "el alfa inicial de la animación" (0.5f).
+ *
+ * **La distinción es de seguridad, no de estilo.** El pulso de fatiga
+ * crítica es un canal de información (03 §2.1: *"barra gruesa + icono de
+ * alerta + pulso lento"*). Congelarlo a media opacidad dejaría el nivel
+ * *crítico* visualmente más débil que el *sugerido* —que se pinta a alfa
+ * pleno— e invertiría la escala. Es exactamente la clase de mentira que
+ * §1.3 prohíbe.
+ */
+internal const val ALFA_PLENO = 1f
+
+/**
+ * Única fuente de la regla del pulso, extraída como función pura para poder
+ * probarla sin emulador (`PulsoDeFatigaTest`).
+ *
+ * Pulsa **solo** si el nivel es crítico **y** el sistema permite
+ * animaciones. Cualquier otra combinación se dibuja a [ALFA_PLENO].
+ */
+internal fun pulsaPorFatigaCritica(nivel: String, animacionesActivas: Boolean): Boolean =
+    nivel == "critico" && animacionesActivas

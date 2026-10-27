@@ -3,7 +3,7 @@ package com.smartassign.app.ui.asignacion
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -151,7 +151,7 @@ private fun DialogoDeCierre(causa: String, accionSugerida: String, onCerrar: () 
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = Spacing.lg)
-                        .height(TouchTarget.accionSecundaria)
+                        .heightIn(min = TouchTarget.accionSecundaria)
                         .testTag("flujo-asignacion-error-cerrar")
                 ) { Text("Entendido") }
             }

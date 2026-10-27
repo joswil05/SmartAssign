@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
@@ -39,6 +40,7 @@ import com.google.mlkit.vision.common.InputImage
 import com.smartassign.app.ui.theme.BgOverlay
 import com.smartassign.app.ui.theme.Spacing
 import com.smartassign.app.ui.theme.TextPrimary
+import com.smartassign.app.ui.theme.TouchTarget
 import com.smartassign.app.ui.theme.TypeBody
 
 /**
@@ -160,7 +162,13 @@ private fun VistaSinPermiso(modifier: Modifier, onReintentar: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text("Se necesita la cámara para escanear.", style = TypeBody, color = TextPrimary)
-        Button(onClick = onReintentar, modifier = Modifier.padding(top = Spacing.md)) {
+        Button(
+            onClick = onReintentar,
+            modifier = Modifier
+                .padding(top = Spacing.md)
+                .heightIn(min = TouchTarget.accionTerciaria)
+                .testTag("escaneo-permitir-camara")
+        ) {
             Text("Permitir cámara")
         }
     }

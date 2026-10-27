@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import com.smartassign.app.ui.comun.animacionesActivas
 import com.smartassign.app.ui.theme.BgBase
 import com.smartassign.app.ui.theme.ColorPeligro
 import com.smartassign.app.ui.theme.EstadoFuera
@@ -72,16 +73,25 @@ fun <T> PantallaConEstado(
  */
 @Composable
 private fun EsqueletoDeCarga(esqueleto: @Composable () -> Unit) {
-    val transicion = rememberInfiniteTransition(label = "pulso-carga")
-    val alfa by transicion.animateFloat(
-        initialValue = 0.4f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = DURACION_PULSO_MS, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "alfa-pulso"
-    )
+    // UT-E15.6 (08 §P1-8): con "Quitar animaciones" activo el esqueleto
+    // se queda quieto y a opacidad plena. Sigue distinguiéndose de
+    // "vacío" y de "error" por su forma —que es lo que §12.4 exige—, no
+    // por el movimiento.
+    val alfa = if (animacionesActivas()) {
+        val transicion = rememberInfiniteTransition(label = "pulso-carga")
+        val animado by transicion.animateFloat(
+            initialValue = 0.4f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = DURACION_PULSO_MS, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "alfa-pulso"
+        )
+        animado
+    } else {
+        1f
+    }
     Box(
         modifier = Modifier
             .testTag("estado-cargando")
